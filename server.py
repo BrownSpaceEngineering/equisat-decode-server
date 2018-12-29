@@ -7,18 +7,17 @@ NUM_DECODER_PROCESSES = 1
 decoder = DecoderQueue()
 
 @app.route('/')
-def home():
-    return "Hello"
+def root():
+    return app.send_static_file('index.html')
 
 @app.route('/upload', methods=["POST", "GET"])
 def upload_form():
     # TODO: upload file
 
     wavfilename = "..."
-    sample_rate = request.form["sample_rate"]
-
-    decoder.submit(wavfilename, sample_rate, on_complete_decoding, args={
+    decoder.submit(wavfilename, on_complete_decoding, args={
         "email": request.form["email"],
+        "rx_time": request.form["rx_time"],
         "station_name": request.form["station_name"],
         "submit_to_db": request.form["submit_to_db"],
         "post_publicly": request.form["post_publicly"]

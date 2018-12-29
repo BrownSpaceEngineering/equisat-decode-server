@@ -20,11 +20,10 @@ class DecoderQueue:
     def stop(self):
         self.stopping = True
 
-    def submit(self, wavfilename, sample_rate, onfinish, args):
+    def submit(self, wavfilename, onfinish, args):
         """ Submits an FM decode job to the decoder queue."""
         self.queue.put_nowait({
             "wavfilename": wavfilename,
-            "sample_rate": sample_rate,
             "onfinish": onfinish,
             "args": args
         })
@@ -39,8 +38,12 @@ class DecoderQueue:
                 print("Stopping decoder worker")
                 return
 
+            # determine sample rate of file
+            # TODO
+            sample_rate = None
+
             # spawn the GNU radio flowgraph and run it
-            tb = equisat_fm_demod(next_demod["wavfilename"], next_demod["sample_rate"])
+            tb = equisat_fm_demod(next_demod["wavfilename"], sample_rate)
             tb.start()
             tb.wait()
 
