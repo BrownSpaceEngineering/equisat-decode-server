@@ -3,6 +3,7 @@ from equisat_fm_demod import equisat_fm_demod
 from packetparse import packetparse
 import binascii
 import pmt
+import wave
 
 class DecoderQueue:
     def __init__(self):
@@ -20,13 +21,21 @@ class DecoderQueue:
     def stop(self):
         self.stopping = True
 
-    def submit(self, wavfilename, onfinish, args):
+    def submit(self, wavfilename, sample_rate, onfinish, args):
         """ Submits an FM decode job to the decoder queue."""
         self.queue.put_nowait({
             "wavfilename": wavfilename,
+            "sample_rate": sample_rate,
             "onfinish": onfinish,
             "args": args
         })
+
+    @staticmethod
+    def get_wav_info(wavfilename):
+        wf = wave.open(wavfilename)
+        sample_rate = wf.getframerate()
+        duration = wf.getnframes() / sample_rate
+        return sample_rate, duration
 
     @staticmethod
     def decode_worker(dec_queue, stopping):
@@ -38,12 +47,8 @@ class DecoderQueue:
                 print("Stopping decoder worker")
                 return
 
-            # determine sample rate of file
-            # TODO
-            sample_rate = None
-
             # spawn the GNU radio flowgraph and run it
-            tb = equisat_fm_demod(next_demod["wavfilename"], sample_rate)
+            tb = equisat_fm_demod(wavfile=next_demod["wavfilename"], sample_rate=int(next_demod["sample_rate"]))
             tb.start()
             tb.wait()
 
@@ -69,7 +74,7 @@ class DecoderQueue:
                 })
 
             onfinish = next_demod["onfinish"]
-            onfinish({
+            onfinish(next_demod["wavfilename"], {
                 "raw_packets": raw_packets,
                 "corrected_packets": corrected_packets,
             }, next_demod["args"])
