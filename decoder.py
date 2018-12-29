@@ -77,7 +77,7 @@ class DecoderQueue:
 
                 for i in range(tb.message_store_block_raw.num_messages()):
                     msg = tb.message_store_block_raw.get_message(i)
-                    raw_packets.append(pmt.u8vector_elements(pmt.cdr(msg)))
+                    raw_packets.append(bytearray(pmt.u8vector_elements(pmt.cdr(msg))))
 
                 for i in range(tb.message_store_block_corrected.num_messages()):
                     msg = tb.message_store_block_corrected.get_message(i)
@@ -85,9 +85,9 @@ class DecoderQueue:
                     raw = pmt.u8vector_elements(pmt.dict_ref(pmt.car(msg), pmt.intern("raw"), pmt.get_PMT_NIL()))
                     decoded, decode_errs = packetparse.parse_packet(binascii.hexlify(bytearray(corrected)))
                     corrected_packets.append({
-                        "raw": raw,
-                        "corrected": corrected,
-                        "decoded": decoded,
+                        "raw": bytearray(raw),
+                        "corrected": bytearray(corrected),
+                        "parsed": decoded,
                         "decode_errs": decode_errs
                     })
 
