@@ -29,7 +29,7 @@ def upload_form():
 
     else:
         # get metadata for filtering
-        sample_rate, duration = decoder.get_wav_info(wavfilename)
+        sample_rate, duration, _ = decoder.get_wav_info(wavfilename)
 
         if duration > MAX_WAVFILE_DURATION_S:
             title = "WAV file too long"
@@ -38,7 +38,7 @@ def upload_form():
             # remove the unused file
             os.remove(wavfilename)
         else:
-            decoder.submit(wavfilename, sample_rate, on_complete_decoding, args={
+            decoder.submit(wavfilename, on_complete_decoding, args={
                 "email": request.form["email"],
                 "rx_time": request.form["rx_time"],
                 "station_name": request.form["station_name"],
@@ -78,7 +78,9 @@ def allowed_file(filename):
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def on_complete_decoding(wavfilename, packets, args):
-    # TODO: remove wavfile
+    # remove wavfile because we're done with it
+    os.remove(wavfilename)
+
     # TODO: send email to person with _decoded_ packet
     # TODO: publish packet if desired
     print("finished decoding")

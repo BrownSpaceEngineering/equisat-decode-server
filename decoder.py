@@ -1,31 +1,36 @@
-from multiprocessing import Process, Queue, Value
+import multiprocessing
+import Queue # for Queue.Empty
 from equisat_fm_demod import equisat_fm_demod
 from packetparse import packetparse
 import binascii
 import pmt
 import wave
+import sys
+import time
+
+QUEUE_EMPTY_POLL_PERIOD = 2
+FLOWGRAPH_POLL_PERIOD_S = 0.2
 
 class DecoderQueue:
     def __init__(self):
-        self.queue = Queue()
+        self.queue = multiprocessing.Queue()
         self.procs = []
-        self.stopping = Value("b", False)
+        self.stopping = multiprocessing.Value("b", False)
 
     def start(self, num):
         """ Spawns a new set of num processes which reads requests off the decode queue and performs them """
         for i in range(num):
-            proc = Process(target=self.decode_worker, args=(self.queue, self.stopping))
+            proc = multiprocessing.Process(target=self.decode_worker, args=(self.queue, self.stopping))
             proc.start()
             self.procs.append(proc)
 
     def stop(self):
-        self.stopping = True
+        self.stopping.value = True
 
-    def submit(self, wavfilename, sample_rate, onfinish, args):
+    def submit(self, wavfilename, onfinish, args):
         """ Submits an FM decode job to the decoder queue."""
         self.queue.put_nowait({
             "wavfilename": wavfilename,
-            "sample_rate": sample_rate,
             "onfinish": onfinish,
             "args": args
         })
@@ -34,47 +39,77 @@ class DecoderQueue:
     def get_wav_info(wavfilename):
         wf = wave.open(wavfilename)
         sample_rate = wf.getframerate()
-        duration = wf.getnframes() / sample_rate
-        return sample_rate, duration
+        nframes = wf.getnframes()
+        duration = nframes  / sample_rate
+        return sample_rate, duration, nframes
 
     @staticmethod
     def decode_worker(dec_queue, stopping):
-        while not stopping.value:
-            # block until next demod is in
-            try:
-                next_demod = dec_queue.get()
-            except KeyboardInterrupt:
-                print("Stopping decoder worker")
-                return
+        try:
+            while not stopping.value:
+                # block until next demod is in
+                try:
+                    next_demod = dec_queue.get(timeout=QUEUE_EMPTY_POLL_PERIOD)
+                except Queue.Empty:
+                    # check for stopped condition if queue empty after timeout
+                    continue
+                except KeyboardInterrupt:
+                    return
 
-            # spawn the GNU radio flowgraph and run it
-            tb = equisat_fm_demod(wavfile=next_demod["wavfilename"], sample_rate=int(next_demod["sample_rate"]))
-            tb.start()
-            tb.wait()
+                wavfilename = next_demod["wavfilename"]
+                sample_rate, duration, nframes = DecoderQueue.get_wav_info(wavfilename)
 
-            # we have a block to store both all valid raw packets and one to store
-            # all those that passed error correction (which includes the corresponding raw)
-            raw_packets = []
-            corrected_packets = []
+                # spawn the GNU radio flowgraph and run it
+                tb = equisat_fm_demod(wavfile=wavfilename, sample_rate=sample_rate)
+                tb.start()
+                # run until the wav source block has completed
+                # (GNU Radio has a bug such that flowgraphs with Python message passing blocks won't terminate)
+                # (see https://github.com/gnuradio/gnuradio/pull/797, https://www.ruby-forum.com/t/run-to-completion-not-working-with-message-passing-blocks/240759)
+                while tb.blocks_wavfile_source_0.nitems_written(0) < nframes:
+                    time.sleep(FLOWGRAPH_POLL_PERIOD_S)
+                tb.stop()
+                tb.wait()
 
-            for i in range(tb.message_store_block_raw.num_messages()):
-                msg = tb.message_store_block_raw.get_message(i)
-                raw_packets.append(pmt.u8vector_elements(pmt.cdr(msg)))
+                # we have a block to store both all valid raw packets and one to store
+                # all those that passed error correction (which includes the corresponding raw)
+                raw_packets = []
+                corrected_packets = []
 
-            for i in range(tb.message_store_block_corrected.num_messages()):
-                msg = tb.message_store_block_corrected.get_message(i)
-                corrected = pmt.u8vector_elements(pmt.cdr(msg))
-                raw = pmt.u8vector_elements(pmt.dict_ref(pmt.car(msg), pmt.intern("raw"), pmt.get_PMT_NIL()))
-                decoded, decode_errs = packetparse.parse_packet(binascii.hexlify(corrected))
-                corrected_packets.append({
-                    "raw": raw,
-                    "corrected": corrected,
-                    "decoded": decoded,
-                    "decode_errs": decode_errs
-                })
+                for i in range(tb.message_store_block_raw.num_messages()):
+                    msg = tb.message_store_block_raw.get_message(i)
+                    raw_packets.append(pmt.u8vector_elements(pmt.cdr(msg)))
 
-            onfinish = next_demod["onfinish"]
-            onfinish(next_demod["wavfilename"], {
-                "raw_packets": raw_packets,
-                "corrected_packets": corrected_packets,
-            }, next_demod["args"])
+                for i in range(tb.message_store_block_corrected.num_messages()):
+                    msg = tb.message_store_block_corrected.get_message(i)
+                    corrected = pmt.u8vector_elements(pmt.cdr(msg))
+                    raw = pmt.u8vector_elements(pmt.dict_ref(pmt.car(msg), pmt.intern("raw"), pmt.get_PMT_NIL()))
+                    decoded, decode_errs = packetparse.parse_packet(binascii.hexlify(bytearray(corrected)))
+                    corrected_packets.append({
+                        "raw": raw,
+                        "corrected": corrected,
+                        "decoded": decoded,
+                        "decode_errs": decode_errs
+                    })
+
+                onfinish = next_demod["onfinish"]
+                onfinish(wavfilename, {
+                    "raw_packets": raw_packets,
+                    "corrected_packets": corrected_packets,
+                }, next_demod["args"])
+
+        finally:
+            print("Stopping decoder worker")
+
+def onfinish_cli(wf, packets, args):
+    print("done; %d raw, %d corrected" % (len(packets["raw_packets"]), len(packets["corrected_packets"])))
+
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("usage: decoder.py <wavfilename>")
+        exit(1)
+
+    dec = DecoderQueue()
+    dec.start(1)
+    dec.submit(sys.argv[1], onfinish_cli, None)
+    time.sleep(5)
+    dec.stop()
