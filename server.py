@@ -6,6 +6,10 @@ import requests
 import yaml
 import os
 import yagmail
+from yagmail import validate
+from yagmail.error import YagInvalidEmailAddress
+import datetime
+import logging
 
 import config
 from decoder import DecoderQueue
@@ -22,6 +26,10 @@ app = Flask(__name__)
 decoder = DecoderQueue()
 # limit upload file size
 app.config['MAX_CONTENT_LENGTH'] = (1.1*MAX_WAVFILE_SIZE_B) * 1024 * 1024
+# # config logging to console
+# console = logging.StreamHandler()
+# console.setLevel(logging.DEBUG)
+# app.logger.addHandler(console)
 
 # setup email
 if hasattr(config, "gmail_user") and hasattr(config, "gmail_user"):
@@ -36,11 +44,29 @@ def root():
 
 @app.route('/upload', methods=["POST", "GET"])
 def upload_form():
+    # convert RX time fields into datetime
+    # parse in as local time
+    rx_time = datetime.datetime.strptime(request.form["rx_time_date"] + " " + request.form["rx_time_time"], "%Y-%m-%d %H:%M")
+    # then convert to UTC time using entered timezone
+    rx_time_timezone = request.form["rx_time_timezone"]
+    tz_hours = int(rx_time_timezone[:3])
+    tz_minutes = int(60*(float(rx_time_timezone[4:])/100.0))
+    rx_time = rx_time - datetime.timedelta(hours=tz_hours, minutes=tz_minutes)
+
+    # initial validation
+    try:
+        validate.validate_email_with_regex(request.form["email"])
+    except YagInvalidEmailAddress:
+        title = "Invalid email address"
+        message = "We send you the results of the decoding by email, so we'll need a valid email address. We don't store your address after sending you the results."
+        return render_template("decode_submit.html", title=title, message=message)
+
+    # wavfile validation
     wavfilename = save_wavfile()
     if wavfilename is None:
         title = "No WAV file provided or too large"
-        message = "Please make sure to upload a WAV file (.wav or .wave) smaller than %d MB for the server to decode" % MAX_WAVFILE_SIZE_B
-
+        message = "Please make sure to upload a WAV file (.wav or .wave) smaller than %d MB for the server to decode." \
+                  "Try shortening the audio duration using a program such as Audacity." % (MAX_WAVFILE_SIZE_B/1e6)
     else:
         # get metadata for filtering
         sample_rate, duration, _ = decoder.get_wav_info(wavfilename)
@@ -54,7 +80,7 @@ def upload_form():
         else:
             decoder.submit(wavfilename, on_complete_decoding, args={
                 "email": request.form["email"],
-                "rx_time": request.form["rx_time"],
+                "rx_time": rx_time,
                 "station_name": request.form["station_name"],
                 "submit_to_db": request.form.has_key("submit_to_db") or request.form.has_key("post_publicly"), # submit to db is prereq
                 "post_publicly": request.form.has_key("post_publicly")
@@ -66,7 +92,6 @@ def upload_form():
             else:
                 message += "Thank you for your interest in EQUiSat!"
 
-    # return done page
     return render_template("decode_submit.html", title=title, message=message)
 
 def save_wavfile():
@@ -105,31 +130,34 @@ def publish_packets(packets, args):
     packet_published = False
     for packet in packets["corrected_packets"]:
         if len(packet["decode_errs"]) == 0:
-            rx_time = args["rx_time"] # TODO: convert to datetime
-            published = submit_packet(packet["raw"], packet["corrected"], args["post_publicly"], rx_time, args["station_name"], config.api_key)
+            published = submit_packet(packet["raw"], packet["corrected"], args["post_publicly"], args["rx_time"], args["station_name"], config.api_key)
             packet_published = packet_published or published
+        else:
+            print("parse errs")
+            app.logger.debug("Did not submit packet to DB due to decode errors: %s", packet["decode_errs"])
     return packet_published
 
 def submit_packet(raw, corrected, post_publicly, rx_time, station_name, api_key):
-    if len(station_name) == 0:
-        station_name = "[unknown]"
+    epoch = datetime.datetime(1970, 1, 1)
+    rx_time_posix = (rx_time - epoch).total_seconds()*1000 # ms since 1970
 
     jsn = {
         "raw": raw,
         "corrected": corrected,
         "station_name": station_name,
         "post_publicly": post_publicly,
-        "added": rx_time, # TODO: convert to what API needs
-        "secret": api_key
+        "source": "decoder.brownspace.org",
+        "rx_time": rx_time_posix,
+        "secret": api_key,
     }
 
     try:
         r = requests.post(PACKET_API_ROUTE, json=jsn)
         if r.status_code == 201:
-            print("Submitted duplicate packet from '%s' successfully" % self.station_name)
+            print("Submitted duplicate packet from '%s' successfully" % station_name)
             return True
         elif r.status_code == requests.codes.ok:
-            print("Submitted packet from '%s' successfully" % self.station_name)
+            print("Submitted packet from '%s' successfully" % station_name)
             return True
         else:
             print("[ERROR] couldn't submit packet (%d): %s" % (r.status_code, r.text))
@@ -180,7 +208,7 @@ The Brown Space Engineering Team
     
 """ % (args["station_name"], cleaned_wavfilename, raw_packets_summary, corrected_packets_summary, extra_msg)
 
-    print(contents)
+    # print(contents)
 
     if yag is not None:
         yag.send(to=args["email"],
