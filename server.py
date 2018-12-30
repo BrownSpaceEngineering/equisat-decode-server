@@ -178,7 +178,7 @@ Here are your results from the <a href="http://decoder.brownspace.org">EQUiSat D
 Best,
 The Brown Space Engineering Team
     
-    """ % (args["station_name"], cleaned_wavfilename, raw_packets_summary, corrected_packets_summary, extra_msg)
+""" % (args["station_name"], cleaned_wavfilename, raw_packets_summary, corrected_packets_summary, extra_msg)
 
     print(contents)
 
@@ -187,9 +187,10 @@ The Brown Space Engineering Team
                   subject=subject,
                   contents=contents)
 
-def main():
+def start_decoder():
     decoder.start(NUM_DECODER_PROCESSES)
-    app.run()
 
 if __name__ == "__main__":
-    main()
+    start_decoder()
+    app.run()
+    # see run.py for production runner

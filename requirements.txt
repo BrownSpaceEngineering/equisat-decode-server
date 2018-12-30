@@ -3,3 +3,4 @@ werkzeug
 yagmail
 pyyaml
 requests
+gevent
