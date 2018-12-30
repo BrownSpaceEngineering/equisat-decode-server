@@ -1,2 +1,4 @@
 #!/usr/bin/env bash
-nohup python run.py
+echo "killing old processes"
+sudo killall python
+nohup python run.py &
