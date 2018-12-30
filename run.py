@@ -1,9 +1,10 @@
+#!/usr/bin/env python
 from gevent.pywsgi import WSGIServer
 from server import app
-from server import start_decoder, NUM_DECODER_PROCESSES
+from server import start_decoder
 
 # start decoder worker process
-start_decoder(NUM_DECODER_PROCESSES)
+start_decoder()
 # see nginx config for port 80 proxy
 http_server = WSGIServer(('', 5000), app)
 

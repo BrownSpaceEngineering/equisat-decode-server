@@ -187,8 +187,8 @@ The Brown Space Engineering Team
                   subject=subject,
                   contents=contents)
 
-def start_decoder():
-    decoder.start(NUM_DECODER_PROCESSES)
+def start_decoder(num_procs=NUM_DECODER_PROCESSES):
+    decoder.start(num_procs)
 
 if __name__ == "__main__":
     start_decoder()

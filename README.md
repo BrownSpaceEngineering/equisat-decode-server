@@ -7,4 +7,7 @@ Install gr-equisat_decoder on the system
 Do `pip install -r requirements.txt`
 
 ## Run
-`python server.py`
+
+Development: `python server.py`
+
+Production: `python run.py` or `./run`
