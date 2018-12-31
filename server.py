@@ -12,7 +12,10 @@ import datetime
 import logging
 
 import config
-from decoder import DecoderQueue
+if config.decoder_enabled:
+    from decoder import DecoderQueue
+else:
+    from fake_decoder import DecoderQueue
 
 # config
 NUM_DECODER_PROCESSES = 1
@@ -24,6 +27,7 @@ PACKET_API_ROUTE = "http://localhost:3000/equisat/receive/raw"
 
 app = Flask(__name__)
 decoder = DecoderQueue()
+
 # limit upload file size
 app.config['MAX_CONTENT_LENGTH'] = (1.1*MAX_WAVFILE_SIZE_B) * 1024 * 1024
 # # config logging to console
