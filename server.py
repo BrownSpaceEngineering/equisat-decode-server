@@ -29,7 +29,7 @@ app = Flask(__name__)
 decoder = DecoderQueue()
 
 # limit upload file size
-app.config['MAX_CONTENT_LENGTH'] = (1.1*MAX_WAVFILE_SIZE_B) * 1024 * 1024
+app.config['MAX_CONTENT_LENGTH'] = 1.5*MAX_WAVFILE_SIZE_B
 # # config logging to console
 # console = logging.StreamHandler()
 # console.setLevel(logging.DEBUG)
@@ -44,7 +44,7 @@ else:
 
 @app.route('/')
 def root():
-    return render_template('index.html')
+    return render_template('index.html', max_wavfile_size_b=MAX_WAVFILE_SIZE_B, max_wavfile_duration_s=MAX_WAVFILE_DURATION_S)
 
 @app.route('/upload', methods=["POST", "GET"])
 def upload_form():

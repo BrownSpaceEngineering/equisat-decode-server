@@ -17,6 +17,34 @@
         EQUiSat FM Decoder
       </h3>
     </div>
+
+    <div id="req_and_recs">
+        <p>This website allows you to upload NFM-demodulated (narrow frequency modulation) recordings of EQUiSat transmissions, and receive an email with the decoded data from the transmission. You can also automatically submit that data to our API and have your reception posted publicly on Twitter!</p>
+        <p>There are a few requirements of these recordings, and some recommendations for how to produce them:</p>
+
+        <h3>Requirements:</h3>
+        <ul class="info_list">
+            <li>The file must be a .wav file</li>
+            <li>The file must be below {{ max_wavfile_size_b / 1000000 }} MB in size</li>
+            <li>The duration of the audio must be less than {{ max_wavfile_duration_s }} seconds</li>
+            <li>This app is intended to be used on single bursts of packets rather than prolonged pass recordings</li>
+        </ul>
+
+        <h3>Recommendations:</h3>
+        <ul class="info_list">
+            <li>The file should either be doppler-corrected or you should tune the frequency before recording each packet burst (if you have an SDR recording)</li>
+            <li>If you're using SDR software and don't have doppler correction set up, the best approach is:
+                <ol>
+                    <li>Record the raw IQ data (baseband RF) during a pass</li>
+                    <li>Replay the IQ recording and visually look for packets</li>
+                    <li>Once you see one, visually line up the frequency you're tuned to to the center of the packet waveform</li>
+                    <li>Rewind the IQ recording and record the FM audio at your configured frequency</li>
+                </ol>
+            </li>
+            <li>Alternatively, if you have satellite tracking software, you can record the NFM audio throughout the entire pass and then trim that audio to just the best packet bursts before submitting those here.</li>
+        </ul>
+    </div>
+
     <div class="mx-auto txt-center content">
         <form action="/upload" method="POST" enctype="multipart/form-data">
             <div class="form-group">

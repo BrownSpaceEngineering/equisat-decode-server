@@ -20,6 +20,11 @@ body {
     margin-bottom: 1em;
 }
 
+#req_and_recs {
+    text-align: left;
+    margin: 0 3em;
+}
+
 #btn-submit {
     margin-top: 6px;
 }
