@@ -15,6 +15,7 @@ import config
 if config.decoder_enabled:
     from decoder import DecoderQueue
 else:
+    print("Decoder disabled; using fake decoder")
     from fake_decoder import DecoderQueue
 
 # config
@@ -30,16 +31,13 @@ decoder = DecoderQueue()
 
 # limit upload file size
 app.config['MAX_CONTENT_LENGTH'] = 1.5*MAX_WAVFILE_SIZE_B
-# # config logging to console
-# console = logging.StreamHandler()
-# console.setLevel(logging.DEBUG)
-# app.logger.addHandler(console)
+app.logger.setLevel(logging.DEBUG)
 
 # setup email
 if hasattr(config, "gmail_user") and hasattr(config, "gmail_user"):
     yag = yagmail.SMTP(config.gmail_user, config.gmail_pass)
 else:
-    print("[WARNING] incomplete config.py; will not send emails")
+    app.logger.warning("incomplete config.py; will not send emails")
     yag = None
 
 @app.route('/')
@@ -82,6 +80,9 @@ def upload_form():
             # remove the unused file
             os.remove(wavfilename)
         else:
+            app.logger.info("[%s] submitting decode request; rx_time: %s, submit_to_db: %s, post_publicly: %s, wavfilename: %s",
+                            request.form["station_name"], rx_time, request.form.has_key("submit_to_db"), request.form.has_key("post_publicly"), wavfilename)
+
             decoder.submit(wavfilename, on_complete_decoding, args={
                 "email": request.form["email"],
                 "rx_time": rx_time,
@@ -101,7 +102,7 @@ def upload_form():
 def save_wavfile():
     # check if the post request has the file part
     if 'wavfile' not in request.files:
-        print("invalid form POST for file upload")
+        app.logger.warning("Invalid form POST for file upload")
         return None
 
     wavfile = request.files['wavfile']
@@ -122,6 +123,7 @@ def allowed_file(filename):
 
 def on_complete_decoding(wavfilename, packets, args):
     # remove wavfile because we're done with it
+    app.logger.debug("[%s] removing used wavfile %s", args["station_name"], wavfilename)
     os.remove(wavfilename)
 
     # publish packet if user desires
@@ -137,8 +139,7 @@ def publish_packets(packets, args):
             published = submit_packet(packet["raw"], packet["corrected"], args["post_publicly"], args["rx_time"], args["station_name"], config.api_key)
             packet_published = packet_published or published
         else:
-            print("parse errs")
-            app.logger.debug("Did not submit packet to DB due to decode errors: %s", packet["decode_errs"])
+            app.logger.debug("[%s] did not submit packet to DB due to decode errors: %s", args["station_name"], packet["decode_errs"])
     return packet_published
 
 def submit_packet(raw, corrected, post_publicly, rx_time, station_name, api_key):
@@ -157,17 +158,18 @@ def submit_packet(raw, corrected, post_publicly, rx_time, station_name, api_key)
 
     try:
         r = requests.post(PACKET_API_ROUTE, json=jsn)
-        if r.status_code == 201:
-            print("Submitted duplicate packet from '%s' successfully" % station_name)
-            return True
-        elif r.status_code == requests.codes.ok:
-            print("Submitted packet from '%s' successfully" % station_name)
+        if r.status_code == requests.codes.ok or r.status_code == 201:
+            app.logger.info("[%s] submitted %spacket successfully" %
+                            (station_name, "duplicate" if r.status_code == 201 else ""))
+            del jsn["secret"] # remove hidden info
+            app.logger.debug("Full POST request:\n%s", jsn)
             return True
         else:
-            print("[ERROR] couldn't submit packet (%d): %s" % (r.status_code, r.text))
+            app.logger.warning("[%s] couldn't submit packet (%d): %s" % (station_name, r.status_code, r.text))
             return False
     except Exception as ex:
-        print("[ERROR] couldn't submit packet: %s" % ex)
+        app.logger.error("[%s] couldn't submit packet (%s): %s", station_name)
+        app.logger.execption(ex)
         return False
 
 def send_decode_results(wavfilename, packets, args, packets_published):
@@ -215,14 +217,18 @@ The Brown Space Engineering Team
     # print(contents)
 
     if yag is not None:
-        yag.send(to=args["email"],
-                  subject=subject,
-                  contents=contents)
+        app.logger.debug("[%s] sending email with info on packets (raw: %d, corrected: %d)",
+                         args["station_name"], len(raw_packets), len(corrected_packets))
+        try:
+            yag.send(to=args["email"], subject=subject, contents=contents)
+        except Exception as ex:
+            app.logger.error("[%s] email failed to send (%s): %s", args["station_name"])
+            app.logger.exception(ex)
 
 def start_decoder(num_procs=NUM_DECODER_PROCESSES):
     decoder.start(num_procs)
 
 if __name__ == "__main__":
     start_decoder()
-    app.run()
+    app.run(debug=True)
     # see run.py for production runner
