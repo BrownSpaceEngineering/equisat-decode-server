@@ -2,6 +2,7 @@
 .idea/
 .vscode/
 config.py
+nohup.out
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
