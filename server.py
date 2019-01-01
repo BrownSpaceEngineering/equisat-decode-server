@@ -23,14 +23,13 @@ NUM_DECODER_PROCESSES = 1
 WAV_UPLOAD_FOLDER = 'wav_uploads/'
 ALLOWED_EXTENSIONS = ("wav", "wave")
 MAX_WAVFILE_DURATION_S = 20
-MAX_WAVFILE_SIZE_B = 20e6 # 20 MB
+MAX_WAVFILE_SIZE_B = 10e6 # set in nginx config for production server
 PACKET_API_ROUTE = "http://localhost:3000/equisat/receive/raw"
 
 app = Flask(__name__)
 decoder = DecoderQueue()
 
 # limit upload file size
-app.config['MAX_CONTENT_LENGTH'] = 1.5*MAX_WAVFILE_SIZE_B
 app.logger.setLevel(logging.DEBUG)
 
 # setup email
@@ -43,6 +42,14 @@ else:
 @app.route('/')
 def root():
     return render_template('index.html', max_wavfile_size_b=MAX_WAVFILE_SIZE_B, max_wavfile_duration_s=MAX_WAVFILE_DURATION_S)
+
+@app.errorhandler(413)
+def too_large_request(e):
+    return render_template('error_page.html', error=e, msg="Your uploaded file was too large"), 413
+
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template('error_page.html', error=e, msg=""), 404
 
 @app.route('/upload', methods=["POST", "GET"])
 def upload_form():
