@@ -53,15 +53,6 @@ def page_not_found(e):
 
 @app.route('/upload', methods=["POST", "GET"])
 def upload_form():
-    # convert RX time fields into datetime
-    # parse in as local time
-    rx_time = datetime.datetime.strptime(request.form["rx_time_date"] + " " + request.form["rx_time_time"], "%Y-%m-%d %H:%M")
-    # then convert to UTC time using entered timezone
-    rx_time_timezone = request.form["rx_time_timezone"]
-    tz_hours = int(rx_time_timezone[:3])
-    tz_minutes = int(60*(float(rx_time_timezone[4:])/100.0))
-    rx_time = rx_time - datetime.timedelta(hours=tz_hours, minutes=tz_minutes)
-
     # initial validation
     try:
         validate.validate_email_with_regex(request.form["email"])
@@ -70,12 +61,32 @@ def upload_form():
         message = "We send you the results of the decoding by email, so we'll need a valid email address. We don't store your address after sending you the results."
         return render_template("decode_submit.html", title=title, message=message)
 
+    try:
+        # parse in rx_time as local time
+        rx_time = datetime.datetime.strptime(request.form["rx_time_date"] + " " + request.form["rx_time_time"], "%Y-%m-%d %H:%M")
+    except ValueError:
+        title = "Invalid received time provided or left out"
+        message = "It appears that you didn't enter the time you received the data correctly. Please make sure you correctly entered the date, time, and timezone in which you received your data."
+        return render_template("decode_submit.html", title=title, message=message)
+
+    # convert RX time fields into datetime
+    # then convert to UTC time using entered timezone
+    rx_time_timezone = request.form["rx_time_timezone"]
+    tz_hours = int(rx_time_timezone[:3])
+    tz_minutes = int(60*(float(rx_time_timezone[4:])/100.0))
+    rx_time = rx_time - datetime.timedelta(hours=tz_hours, minutes=tz_minutes)
+
+    if rx_time > datetime.datetime.utcnow():
+        title = "Your received time was in the future"
+        message = "It appears that you entered a time in the future for the time you received this transmission. Check that you chose the correct time zone and entered the date and time correctly."
+        return render_template("decode_submit.html", title=title, message=message)
+
+
     # wavfile validation
     wavfilename = save_wavfile()
     if wavfilename is None:
-        title = "No WAV file provided or too large"
-        message = "Please make sure to upload a WAV file (.wav or .wave) smaller than %d MB for the server to decode." \
-                  "Try shortening the audio duration using a program such as Audacity." % (MAX_WAVFILE_SIZE_B/1e6)
+        title = "No WAV file provided or wrong file type"
+        message = "Please make sure to upload a WAV file (.wav or .wave) according to the specified requirements"
     else:
         # get metadata for filtering
         sample_rate, duration, _ = decoder.get_wav_info(wavfilename)
@@ -175,7 +186,7 @@ def submit_packet(raw, corrected, post_publicly, rx_time, station_name, api_key)
             app.logger.warning("[%s] couldn't submit packet (%d): %s" % (station_name, r.status_code, r.text))
             return False
     except Exception as ex:
-        app.logger.error("[%s] couldn't submit packet (%s): %s", station_name)
+        app.logger.error("[%s] couldn't submit packet", station_name)
         app.logger.execption(ex)
         return False
 
@@ -229,7 +240,7 @@ The Brown Space Engineering Team
         try:
             yag.send(to=args["email"], subject=subject, contents=contents)
         except Exception as ex:
-            app.logger.error("[%s] email failed to send (%s): %s", args["station_name"])
+            app.logger.error("[%s] email failed to send", args["station_name"])
             app.logger.exception(ex)
 
 def start_decoder(num_procs=NUM_DECODER_PROCESSES):

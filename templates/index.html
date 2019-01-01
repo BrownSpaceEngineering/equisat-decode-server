@@ -19,7 +19,7 @@
     </div>
 
     <div id="req_and_recs">
-        <p>This website allows you to upload NFM-demodulated (narrow frequency modulation) recordings of EQUiSat transmissions, and receive an email with the decoded data from the transmission. You can also automatically submit that data to our API and have your reception posted publicly on Twitter!</p>
+        <p>This website allows you to upload NFM-demodulated (narrow frequency modulation) recordings of EQUiSat transmissions, and receive an email with any data decoded from the transmission. You can also automatically submit that data to our API and have your reception posted publicly on Twitter!</p>
         <p>There are a few requirements of these recordings, and some recommendations for how to produce them:</p>
 
         <h3>Requirements:</h3>
@@ -46,7 +46,9 @@
             <li>Lowering the bandwidth and applying noise filters always helps, but make sure not to significantly clip the signal</li>
         </ul>
 
-        This app and decoder are still experimental, and currently a very clean signal is required to successfully decode a packet. So don't get discouraged, and check back in the future as we make improvements!
+        This app and decoder are still experimental, and currently a very clean signal is required to successfully decode a packet. It's also worth trying a few times if it doesn't work the first. So don't get discouraged, and check back in the future as we make improvements!
+
+        Note that this app will email you even if the decoder found no data.
     </div>
 
     <div class="mx-auto txt-center content">
@@ -59,14 +61,14 @@
             <div class="form-group">
                 <label>Station Name</label>
                 <input type="text" name="station_name" class="form-control" id="station_name1" aria-describedby="stationNameHelp" placeholder="Enter station identifier">
-                <small id="stationNameHelp" class="form-text text-muted">Your name, callsign, or just the name of the receiving station.</small>
+                <small id="stationNameHelp" class="form-text text-muted">Your name, callsign, or just the name of the receiving station. You can leave this blank if you want to be anonymous. </small>
             </div>
 
             <div class="form-group">
               <label>Time Received</label>
               <div class="input-group">
-                <input type="date" name="rx_time_date" aria-label="Date" class="form-control" aria-describedby="receiveTimeHelp">
-                <input type="time" name="rx_time_time" aria-label="Time" class="form-control">
+                <input type="date" name="rx_time_date" aria-label="Date" class="form-control" placeholder="yyyy-mm-dd" aria-describedby="receiveTimeHelp">
+                <input type="time" name="rx_time_time" aria-label="Time" class="form-control" placeholder="hh:mm">
                   <!--from https://gist.github.com/nodesocket/3919205-->
                 <select name="rx_time_timezone">
                   <option value="-12:00">(GMT -12:00) Eniwetok, Kwajalein</option>
