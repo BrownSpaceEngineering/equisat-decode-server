@@ -51,7 +51,11 @@ def too_large_request(e):
 def page_not_found(e):
     return render_template('error_page.html', error=e, msg=""), 404
 
-@app.route('/upload', methods=["POST", "GET"])
+@app.route("/test")
+def test():
+    return render_template("decode_submit.html", title="this is a title", message="this is a bit longer of a message to pad it out and be realistic")
+
+@app.route('/upload', methods=["POST"])
 def upload_form():
     # initial validation
     try:
@@ -109,7 +113,7 @@ def upload_form():
                 "post_publicly": request.form.has_key("post_publicly")
             })
             title = "WAV file submitted successfully!"
-            message = "Your file is queued to be decoded. You should be receiving an email shortly with any results. "
+            message = "Your file is queued to be decoded. You should be receiving an email shortly (even if there were no results). "
             if request.form.has_key("submit_to_db"):
                 message += "Thank you so much for your help in providing us data on EQUiSat!"
             else:
@@ -205,13 +209,13 @@ def send_decode_results(wavfilename, packets, args, packets_published):
         decode_errs_s = "none" if len(corrected_packets[i]["decode_errs"]) == 0 else ", ".join(corrected_packets[i]["decode_errs"])
         corrected_packets_summary += "packet #%d:\nhex:\n\t%s\nerrors in decoding: %s\ndecoded data:\n %s\n\n" % \
                                      (i+1, binascii.hexlify(corrected_packets[i]["corrected"]), decode_errs_s, parsed_yaml)
-    corrected_packets_summary += "To learn more about the decoded data, see <a href=\"https://docs.google.com/spreadsheets/d/e/2PACX-1vSCpr4KPwXkXyEMv6oPps-kVsNsd_Ell5whlvj-0T_5N9dIH5jvBTHCl6eZ_xVBugYEiL5CNR-p45G7/pubhtml?gid=589366724\">this table</a>"
-
+    if len(corrected_packets) > 0:
+        corrected_packets_summary += "To learn more about the decoded data, see <a href=\"https://docs.google.com/spreadsheets/d/e/2PACX-1vSCpr4KPwXkXyEMv6oPps-kVsNsd_Ell5whlvj-0T_5N9dIH5jvBTHCl6eZ_xVBugYEiL5CNR-p45G7/pubhtml?gid=589366724\">this table</a>"
 
     extra_msg = ""
     if packets_published:
         if args["submit_to_db"]:
-            extra_msg = "Your packets were added to our database and may have been posted to Twitter!\n\n"
+            extra_msg = "Your packets were added to our database and should have been posted to <a href=\"https://twitter.com/equisat_bot\">Twitter</a>!\n\n"
         else:
             extra_msg = "Your packets were added to our database!\n\n"
 
@@ -229,16 +233,23 @@ Here are your results from the <a href="http://decoder.brownspace.org">EQUiSat D
 
 Best,
 The Brown Space Engineering Team
-    
+
+Our website: <a href="brownspace.org">brownspace.org</a>
+EQUiSat homepage: <a href="equisat.brownspace.org">equisat.brownspace.org</a>
+Twitter: <a href="twitter.com/BrownCubeSat">twitter.com/BrownCubeSat</a>
+Facebook: <a href="facebook.com/browncubesat">facebook.com/BrownCubeSat</a>
+GitHub: <a href="github.com/brownspaceengineering">github.com/BrownSpaceEngineering</a>
+Email us: <a href="mailto:bse@brown.edu">bse@brown.edu</a>
+
 """ % (args["station_name"], cleaned_wavfilename, raw_packets_summary, corrected_packets_summary, extra_msg)
 
     # print(contents)
 
     if yag is not None:
-        app.logger.debug("[%s] sending email with info on packets (raw: %d, corrected: %d)",
-                         args["station_name"], len(raw_packets), len(corrected_packets))
         try:
             yag.send(to=args["email"], subject=subject, contents=contents)
+            app.logger.debug("[%s] sent email with info on packets (raw: %d, corrected: %d)",
+                             args["station_name"], len(raw_packets), len(corrected_packets))
         except Exception as ex:
             app.logger.error("[%s] email failed to send", args["station_name"])
             app.logger.exception(ex)

@@ -18,122 +18,124 @@
       </h3>
     </div>
 
-    <div id="req_and_recs">
-        <p>This website allows you to upload NFM-demodulated (narrow frequency modulation) recordings of EQUiSat transmissions, and receive an email with any data decoded from the transmission. You can also automatically submit that data to our API and have your reception posted publicly on Twitter!</p>
-        <p>There are a few requirements of these recordings, and some recommendations for how to produce them:</p>
+    <div id="form-section">
+        <div id="req_and_recs">
+            <h5>This website allows you to upload NFM-demodulated (narrow frequency modulation) recordings of transmission from Brown Space Engineering's first satellite, <a href="https://brownspace.org/equisat">EQUiSat</a>, and receive an email with any data decoded from the transmission. You can also automatically submit that data to our database and have your reception posted publicly on Twitter!</h5>
+            <p>We have a few recommendations for how to successfully produce these files:</p>
 
-        <h3>Requirements:</h3>
-        <ul class="info_list">
-            <li>The file must be a .wav file</li>
-            <li>The file must be below {{ max_wavfile_size_b / 1000000 }} MB in size</li>
-            <li>The duration of the audio must be less than {{ max_wavfile_duration_s }} seconds</li>
-            <li>This app is intended to be used on single bursts of packets rather than prolonged pass recordings</li>
-        </ul>
+            <h4>Recommendations:</h4>
+            <ul class="info_list">
+                <li>You can learn <a href="https://brownspace.org/receiving-equisat/">how to receive EQUiSat here</a>.</li>
+                <li>This app is intended for you to upload your best receptions rather than prolonged pass recordings.</li>
+                <li>You'll need to either doppler-correct while receiving the satellite or you should tune the frequency before recording each packet burst</li>
+                <li>If you're using a software-defined radio (SDR) and don't have doppler correction set up, the best approach is:
+                    <ol>
+                        <li>Record the raw IQ data (baseband RF) during a pass</li>
+                        <li>Replay the IQ recording and visually look for packets</li>
+                        <li>Once you see one, visually line up the frequency you're tuned to to the center of the packet waveform</li>
+                        <li>Rewind the IQ recording and record the FM audio at your configured frequency</li>
+                    </ol>
+                </li>
+                <li>Alternatively, if you have satellite tracking software for your SDR software, you can record the NFM audio throughout the entire pass.</li>
+                <li>You can also record audio from a handheld or other hardware NFM radio, while performing manual doppler correction.</li>
+                <li>For the latter two methods, you will likely need to shorten the recording to just the best packets before submitting it here. We recommend using an audio editor such as <a href="https://www.audacityteam.org/download/">Audacity</a> to do this (File->Export->Export Selected Audio is a useful trick)</li>
+                <li>Lowering the bandwidth and applying noise filters always helps, but make sure not to significantly clip the signal</li>
+                <li>For reference and comparison, <a href="/static/good_sample_recording.wav">this is an example</a> of an FM recording which will be successfully decoded by this app.</li>
+            </ul>
 
-        <h3>Recommendations:</h3>
-        <ul class="info_list">
-            <li>The file should either be doppler-corrected or you should tune the frequency before recording each packet burst (if you have an SDR recording)</li>
-            <li>If you're using SDR software and don't have doppler correction set up, the best approach is:
-                <ol>
-                    <li>Record the raw IQ data (baseband RF) during a pass</li>
-                    <li>Replay the IQ recording and visually look for packets</li>
-                    <li>Once you see one, visually line up the frequency you're tuned to to the center of the packet waveform</li>
-                    <li>Rewind the IQ recording and record the FM audio at your configured frequency</li>
-                </ol>
-            </li>
-            <li>Alternatively, if you have satellite tracking software, you can record the NFM audio throughout the entire pass and then trim that audio to just the best packet bursts before submitting those here.</li>
-            <li>Generally, visually lining up the frequency is precise enough for the decoder</li>
-            <li>Lowering the bandwidth and applying noise filters always helps, but make sure not to significantly clip the signal</li>
-        </ul>
+            <p><strong>This app and decoder are still experimental, and currently a very clean signal is required to successfully decode a packet. It's also worth trying a few times if it doesn't work the first. So don't get discouraged, and check back in the future as we make improvements!</strong></p>
+            <p>Note that this app will email you even if the decoder found no data.</p>
 
-        This app and decoder are still experimental, and currently a very clean signal is required to successfully decode a packet. It's also worth trying a few times if it doesn't work the first. So don't get discouraged, and check back in the future as we make improvements!
+        </div>
 
-        Note that this app will email you even if the decoder found no data.
-    </div>
+        <div id="upload-form">
+            <h4>Transmission Upload Form</h4>
+            <p></p>
+            <form action="/upload" method="POST" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="email1">FM-demodulated WAV recording</label>
+                    <input type="file" name="wavfile" id="wavfile-upload" class="form-control-file" aria-describedby="fileHelp">
+                    <small id="fileHelp" class="form-text text-muted">Must be a .wav file below {{ max_wavfile_size_b / 1000000 }} MB in size and under {{ max_wavfile_duration_s }}s in duration.</small>
+                </div>
 
-    <div class="mx-auto txt-center content">
-        <form action="/upload" method="POST" enctype="multipart/form-data">
-            <div class="form-group">
-                <label for="email1">Email address</label>
-                <input type="email" name="email" class="form-control" id="email1" aria-describedby="emailHelp" placeholder="Enter email">
-                <small id="emailHelp" class="form-text text-muted">We don't store your email address after sending you the results.</small>
-            </div>
-            <div class="form-group">
-                <label>Station Name</label>
-                <input type="text" name="station_name" class="form-control" id="station_name1" aria-describedby="stationNameHelp" placeholder="Enter station identifier">
-                <small id="stationNameHelp" class="form-text text-muted">Your name, callsign, or just the name of the receiving station. You can leave this blank if you want to be anonymous. </small>
-            </div>
+                <div class="form-group">
+                    <label for="email1">Email address</label>
+                    <input type="email" name="email" class="form-control" id="email1" aria-describedby="emailHelp" placeholder="Enter email">
+                    <small id="emailHelp" class="form-text text-muted">We don't store your email address after sending you the results.</small>
+                </div>
+                <div class="form-group">
+                    <label>Station name</label>
+                    <input type="text" name="station_name" class="form-control" id="station_name1" aria-describedby="stationNameHelp" placeholder="Enter station identifier">
+                    <small id="stationNameHelp" class="form-text text-muted">Your name, callsign, or just the name of the receiving station. You can leave this blank if you want to be anonymous. </small>
+                </div>
 
-            <div class="form-group">
-              <label>Time Received</label>
-              <div class="input-group">
-                <input type="date" name="rx_time_date" aria-label="Date" class="form-control" placeholder="yyyy-mm-dd" aria-describedby="receiveTimeHelp">
-                <input type="time" name="rx_time_time" aria-label="Time" class="form-control" placeholder="hh:mm">
-                  <!--from https://gist.github.com/nodesocket/3919205-->
-                <select name="rx_time_timezone">
-                  <option value="-12:00">(GMT -12:00) Eniwetok, Kwajalein</option>
-                  <option value="-11:00">(GMT -11:00) Midway Island, Samoa</option>
-                  <option value="-10:00">(GMT -10:00) Hawaii</option>
-                  <option value="-09:50">(GMT -9:30) Taiohae</option>
-                  <option value="-09:00">(GMT -9:00) Alaska</option>
-                  <option value="-08:00">(GMT -8:00) Pacific Time (US &amp; Canada)</option>
-                  <option value="-07:00">(GMT -7:00) Mountain Time (US &amp; Canada)</option>
-                  <option value="-06:00">(GMT -6:00) Central Time (US &amp; Canada), Mexico City</option>
-                  <option value="-05:00">(GMT -5:00) Eastern Time (US &amp; Canada), Bogota, Lima</option>
-                  <option value="-04:50">(GMT -4:30) Caracas</option>
-                  <option value="-04:00">(GMT -4:00) Atlantic Time (Canada), Caracas, La Paz</option>
-                  <option value="-03:50">(GMT -3:30) Newfoundland</option>
-                  <option value="-03:00">(GMT -3:00) Brazil, Buenos Aires, Georgetown</option>
-                  <option value="-02:00">(GMT -2:00) Mid-Atlantic</option>
-                  <option value="-01:00">(GMT -1:00) Azores, Cape Verde Islands</option>
-                  <option value="+00:00" selected="selected">(GMT) Western Europe Time, London, Lisbon, Casablanca</option>
-                  <option value="+01:00">(GMT +1:00) Brussels, Copenhagen, Madrid, Paris</option>
-                  <option value="+02:00">(GMT +2:00) Kaliningrad, South Africa</option>
-                  <option value="+03:00">(GMT +3:00) Baghdad, Riyadh, Moscow, St. Petersburg</option>
-                  <option value="+03:50">(GMT +3:30) Tehran</option>
-                  <option value="+04:00">(GMT +4:00) Abu Dhabi, Muscat, Baku, Tbilisi</option>
-                  <option value="+04:50">(GMT +4:30) Kabul</option>
-                  <option value="+05:00">(GMT +5:00) Ekaterinburg, Islamabad, Karachi, Tashkent</option>
-                  <option value="+05:50">(GMT +5:30) Bombay, Calcutta, Madras, New Delhi</option>
-                  <option value="+05:75">(GMT +5:45) Kathmandu, Pokhara</option>
-                  <option value="+06:00">(GMT +6:00) Almaty, Dhaka, Colombo</option>
-                  <option value="+06:50">(GMT +6:30) Yangon, Mandalay</option>
-                  <option value="+07:00">(GMT +7:00) Bangkok, Hanoi, Jakarta</option>
-                  <option value="+08:00">(GMT +8:00) Beijing, Perth, Singapore, Hong Kong</option>
-                  <option value="+08:75">(GMT +8:45) Eucla</option>
-                  <option value="+09:00">(GMT +9:00) Tokyo, Seoul, Osaka, Sapporo, Yakutsk</option>
-                  <option value="+09:50">(GMT +9:30) Adelaide, Darwin</option>
-                  <option value="+10:00">(GMT +10:00) Eastern Australia, Guam, Vladivostok</option>
-                  <option value="+10:50">(GMT +10:30) Lord Howe Island</option>
-                  <option value="+11:00">(GMT +11:00) Magadan, Solomon Islands, New Caledonia</option>
-                  <option value="+11:50">(GMT +11:30) Norfolk Island</option>
-                  <option value="+12:00">(GMT +12:00) Auckland, Wellington, Fiji, Kamchatka</option>
-                  <option value="+12:75">(GMT +12:45) Chatham Islands</option>
-                  <option value="+13:00">(GMT +13:00) Apia, Nukualofa</option>
-                  <option value="+14:00">(GMT +14:00) Line Islands, Tokelau</option>
-                </select>
-              </div>
-              <small id="receiveTimeHelp" class="form-text text-muted">Your best estimate of the exact time the packets in your file were received.</small>
-            </div>
-            
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" value="" id="submit_to_db" name="submit_to_db">
-              <label class="form-check-label" for="submit_to_db">
-                Submit to database?
-              </label>
-            </div>
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" value="" id="post_publicly" name="post_publicly">
-              <label class="form-check-label" for="submit_to_db">
-                  Post your data with <a href="https://twitter.com/equisat_bot">our Twitter bot</a>?
-              </label>
-            </div>
+                <div class="form-group">
+                  <label>Time received (date, time, and timezone)</label>
+                  <div class="input-group">
+                    <input type="date" name="rx_time_date" aria-label="Date" class="form-control" placeholder="yyyy-mm-dd" aria-describedby="receiveTimeHelp">
+                    <input type="time" name="rx_time_time" aria-label="Time" class="form-control" placeholder="hh:mm">
+                      <!--from https://gist.github.com/nodesocket/3919205-->
+                    <select name="rx_time_timezone">
+                      <option value="-12:00">(GMT -12:00) Eniwetok, Kwajalein</option>
+                      <option value="-11:00">(GMT -11:00) Midway Island, Samoa</option>
+                      <option value="-10:00">(GMT -10:00) Hawaii</option>
+                      <option value="-09:50">(GMT -9:30) Taiohae</option>
+                      <option value="-09:00">(GMT -9:00) Alaska</option>
+                      <option value="-08:00">(GMT -8:00) Pacific Time (US &amp; Canada)</option>
+                      <option value="-07:00">(GMT -7:00) Mountain Time (US &amp; Canada)</option>
+                      <option value="-06:00">(GMT -6:00) Central Time (US &amp; Canada), Mexico City</option>
+                      <option value="-05:00">(GMT -5:00) Eastern Time (US &amp; Canada), Bogota, Lima</option>
+                      <option value="-04:50">(GMT -4:30) Caracas</option>
+                      <option value="-04:00">(GMT -4:00) Atlantic Time (Canada), Caracas, La Paz</option>
+                      <option value="-03:50">(GMT -3:30) Newfoundland</option>
+                      <option value="-03:00">(GMT -3:00) Brazil, Buenos Aires, Georgetown</option>
+                      <option value="-02:00">(GMT -2:00) Mid-Atlantic</option>
+                      <option value="-01:00">(GMT -1:00) Azores, Cape Verde Islands</option>
+                      <option value="+00:00" selected="selected">(GMT) Western Europe Time, London, Lisbon, Casablanca</option>
+                      <option value="+01:00">(GMT +1:00) Brussels, Copenhagen, Madrid, Paris</option>
+                      <option value="+02:00">(GMT +2:00) Kaliningrad, South Africa</option>
+                      <option value="+03:00">(GMT +3:00) Baghdad, Riyadh, Moscow, St. Petersburg</option>
+                      <option value="+03:50">(GMT +3:30) Tehran</option>
+                      <option value="+04:00">(GMT +4:00) Abu Dhabi, Muscat, Baku, Tbilisi</option>
+                      <option value="+04:50">(GMT +4:30) Kabul</option>
+                      <option value="+05:00">(GMT +5:00) Ekaterinburg, Islamabad, Karachi, Tashkent</option>
+                      <option value="+05:50">(GMT +5:30) Bombay, Calcutta, Madras, New Delhi</option>
+                      <option value="+05:75">(GMT +5:45) Kathmandu, Pokhara</option>
+                      <option value="+06:00">(GMT +6:00) Almaty, Dhaka, Colombo</option>
+                      <option value="+06:50">(GMT +6:30) Yangon, Mandalay</option>
+                      <option value="+07:00">(GMT +7:00) Bangkok, Hanoi, Jakarta</option>
+                      <option value="+08:00">(GMT +8:00) Beijing, Perth, Singapore, Hong Kong</option>
+                      <option value="+08:75">(GMT +8:45) Eucla</option>
+                      <option value="+09:00">(GMT +9:00) Tokyo, Seoul, Osaka, Sapporo, Yakutsk</option>
+                      <option value="+09:50">(GMT +9:30) Adelaide, Darwin</option>
+                      <option value="+10:00">(GMT +10:00) Eastern Australia, Guam, Vladivostok</option>
+                      <option value="+10:50">(GMT +10:30) Lord Howe Island</option>
+                      <option value="+11:00">(GMT +11:00) Magadan, Solomon Islands, New Caledonia</option>
+                      <option value="+11:50">(GMT +11:30) Norfolk Island</option>
+                      <option value="+12:00">(GMT +12:00) Auckland, Wellington, Fiji, Kamchatka</option>
+                      <option value="+12:75">(GMT +12:45) Chatham Islands</option>
+                      <option value="+13:00">(GMT +13:00) Apia, Nukualofa</option>
+                      <option value="+14:00">(GMT +14:00) Line Islands, Tokelau</option>
+                    </select>
+                  </div>
+                  <small id="receiveTimeHelp" class="form-text text-muted">Your best estimate of the exact time you started receiving this audio. The more precise the better! </small>
+                </div>
 
-            <br>
-            <input type="file" name="wavfile">
-            <input type="submit" class="btn btn-success" value="Submit">
-        </form>
-
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" value="" id="submit_to_db" name="submit_to_db">
+                  <label class="form-check-label" for="submit_to_db">
+                    Submit received data to our database? (we'd really appreciate it)
+                  </label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" value="" id="post_publicly" name="post_publicly">
+                  <label class="form-check-label" for="submit_to_db">
+                      Post your data with <a href="https://twitter.com/equisat_bot">our Twitter bot</a>?
+                  </label>
+                </div>
+                <input type="submit" id="btn-submit" class="btn btn-success" value="Submit">
+            </form>
+        </div>
     </div>
 
 <!--===============================================================================================-->
