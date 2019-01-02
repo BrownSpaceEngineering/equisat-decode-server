@@ -34,7 +34,7 @@ body {
     background: #5C84C8;
     color: white;
     padding-top: 10px;
-    padding-bottom: 5px;
+    padding-bottom: 10px;
     margin-bottom: 1em;
 }
 
@@ -46,18 +46,17 @@ body {
 #title {
     text-align: left;
     grid-column: 1/2;
+    font-size: 1.75rem;
 }
 
 #social-links {
     text-align: right;
     grid-column: 2/2;
-}
-
-.bseLogo {
-    margin-right: 5px;
+    padding-top: 5px;
 }
 
 .satLogo {
+    margin-top: -5px;
     -webkit-filter: invert(100%);
     filter: invert(100%);
 }
