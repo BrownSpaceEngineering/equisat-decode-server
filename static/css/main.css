@@ -19,6 +19,17 @@ body {
     margin-left: -25px;
 }
 
+.center-msg {
+    margin: auto;
+    margin-top: 5em;
+}
+
+.page-width {
+    width: 60%;
+    margin-left: auto;
+    margin-right: auto;
+}
+
 .header {
     background: #5C84C8;
     color: white;
@@ -27,13 +38,35 @@ body {
     margin-bottom: 1em;
 }
 
-.center-msg {
-    margin: auto;
-    margin-top: 5em;
+#navbar {
+    display: grid;
+    grid-template-columns: 50% 50%;
+}
+
+#title {
+    text-align: left;
+    grid-column: 1/2;
+}
+
+#social-links {
+    text-align: right;
+    grid-column: 2/2;
+}
+
+.bseLogo {
+    width: 35px;
+    height: 35px;
+    margin-right: 5px;
+}
+
+.satLogo {
+    width: 32px;
+    height: 32px;
+    -webkit-filter: invert(100%);
+    filter: invert(100%);
 }
 
 #form-section {
-    width: 60%;
     margin: auto;
     margin-bottom: 4em;
 }
@@ -53,7 +86,8 @@ body {
 }
 
 @media only screen and (max-width: 768px) {
-    #form-section {
+    .page-width {
         width: 90% important;
     }
 }
+
