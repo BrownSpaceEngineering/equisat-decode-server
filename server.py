@@ -9,6 +9,7 @@ from yagmail import validate
 from yagmail.error import YagInvalidEmailAddress
 import datetime
 import logging
+import time
 
 import config
 if config.decoder_enabled:
@@ -143,6 +144,9 @@ def on_complete_decoding(wavfilename, packets, args):
     app.logger.debug("[%s] removing used wavfile %s", args["station_name"], wavfilename)
     os.remove(wavfilename)
 
+    # add a little delay :/
+    time.sleep(8)
+
     # publish packet if user desires
     num_published = publish_packets(packets, args)
 
@@ -208,6 +212,7 @@ def send_decode_results(wavfilename, packets, args, num_published):
     if len(corrected_packets) > 0:
         corrected_packets_summary += "To learn more about the decoded data, see <a href=\"https://docs.google.com/spreadsheets/d/e/2PACX-1vSCpr4KPwXkXyEMv6oPps-kVsNsd_Ell5whlvj-0T_5N9dIH5jvBTHCl6eZ_xVBugYEiL5CNR-p45G7/pubhtml?gid=589366724\">this table</a>"
 
+    extra_msg = ""
     if num_published > 0:
         if args["post_publicly"]:
             extra_msg = "%d of your packets were added to our database and should have been posted to <a href=\"https://twitter.com/equisat_bot\">Twitter</a>!\n\n" % num_published
