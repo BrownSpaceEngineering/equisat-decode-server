@@ -24,7 +24,7 @@ WAV_UPLOAD_FOLDER = 'wav_uploads/'
 ALLOWED_EXTENSIONS = ("wav", "wave")
 MAX_WAVFILE_DURATION_S = 20
 MAX_WAVFILE_SIZE_B = 10e6 # set in nginx config for production server
-PACKET_API_ROUTE = "http://localhost:3000/equisat/receive/raw"
+PACKET_API_ROUTE = "http://api.brownspace.org/equisat/receive/raw"
 
 app = Flask(__name__)
 decoder = DecoderQueue()
