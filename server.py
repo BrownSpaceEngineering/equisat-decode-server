@@ -155,13 +155,15 @@ def on_complete_decoding(wavfilename, packets, args):
 
 def publish_packets(packets, args):
     num_published = 0
-    for packet in packets["corrected_packets"]:
-        if len(packet["decode_errs"]) == 0:
-            published = submit_packet(packet["raw"], packet["corrected"], args["post_publicly"], args["rx_time"], args["station_name"], config.api_key)
-            if published:
-                num_published += 1
-        else:
-            app.logger.debug("[%s] did not submit packet to DB due to decode errors: %s", args["station_name"], packet["decode_errs"])
+    if args["submit_to_db"]:
+        for packet in packets["corrected_packets"]:
+            if len(packet["decode_errs"]) == 0:
+                published = submit_packet(packet["raw"], packet["corrected"], args["post_publicly"], args["rx_time"], args["station_name"], config.api_key)
+                if published:
+                    num_published += 1
+            else:
+                app.logger.debug("[%s] did not submit packet to DB due to decode errors: %s", args["station_name"], packet["decode_errs"])
+
     return num_published
 
 def submit_packet(raw, corrected, post_publicly, rx_time, station_name, api_key):
