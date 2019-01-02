@@ -1,7 +1,6 @@
 #!/usr/bin/python
 from flask import request, Flask, render_template
 from werkzeug.utils import secure_filename
-import binascii
 import requests
 import yaml
 import os
@@ -145,20 +144,21 @@ def on_complete_decoding(wavfilename, packets, args):
     os.remove(wavfilename)
 
     # publish packet if user desires
-    packet_published = publish_packets(packets, args)
+    num_published = publish_packets(packets, args)
 
     # send email to person with decoded packet info
-    send_decode_results(wavfilename, packets, args, packet_published)
+    send_decode_results(wavfilename, packets, args, num_published)
 
 def publish_packets(packets, args):
-    packet_published = False
+    num_published = 0
     for packet in packets["corrected_packets"]:
         if len(packet["decode_errs"]) == 0:
             published = submit_packet(packet["raw"], packet["corrected"], args["post_publicly"], args["rx_time"], args["station_name"], config.api_key)
-            packet_published = packet_published or published
+            if published:
+                num_published += 1
         else:
             app.logger.debug("[%s] did not submit packet to DB due to decode errors: %s", args["station_name"], packet["decode_errs"])
-    return packet_published
+    return num_published
 
 def submit_packet(raw, corrected, post_publicly, rx_time, station_name, api_key):
     epoch = datetime.datetime(1970, 1, 1)
@@ -178,7 +178,7 @@ def submit_packet(raw, corrected, post_publicly, rx_time, station_name, api_key)
         r = requests.post(PACKET_API_ROUTE, json=jsn)
         if r.status_code == requests.codes.ok or r.status_code == 201:
             app.logger.info("[%s] submitted %spacket successfully" %
-                            (station_name, "duplicate" if r.status_code == 201 else ""))
+                            (station_name, "duplicate " if r.status_code == 201 else ""))
             del jsn["secret"] # remove hidden info
             app.logger.debug("Full POST request:\n%s", jsn)
             return True
@@ -187,16 +187,16 @@ def submit_packet(raw, corrected, post_publicly, rx_time, station_name, api_key)
             return False
     except Exception as ex:
         app.logger.error("[%s] couldn't submit packet", station_name)
-        app.logger.execption(ex)
+        app.logger.exception(ex)
         return False
 
-def send_decode_results(wavfilename, packets, args, packets_published):
+def send_decode_results(wavfilename, packets, args, num_published):
     subject = "EQUiSat Decoder Results for %s" % args["station_name"]
 
     raw_packets = packets["raw_packets"]
     raw_packets_summary = "Raw packets (%d detected):\n" % len(raw_packets)
     for i in range(len(raw_packets)):
-        raw_packets_summary += "packet #%d hex:\n\t%s\n" % (i+1, binascii.hexlify(raw_packets[i]))
+        raw_packets_summary += "packet #%d hex:\n\t%s\n" % (i+1, raw_packets[i])
 
     corrected_packets = packets["corrected_packets"]
     corrected_packets_summary = "Valid error-corrected packets (%d detected):\n" % len(corrected_packets)
@@ -204,16 +204,17 @@ def send_decode_results(wavfilename, packets, args, packets_published):
         parsed_yaml = yaml.dump(corrected_packets[i]["parsed"], default_flow_style=False)
         decode_errs_s = "none" if len(corrected_packets[i]["decode_errs"]) == 0 else ", ".join(corrected_packets[i]["decode_errs"])
         corrected_packets_summary += "packet #%d:\nhex:\n\t%s\nerrors in decoding: %s\ndecoded data:\n %s\n\n" % \
-                                     (i+1, binascii.hexlify(corrected_packets[i]["corrected"]), decode_errs_s, parsed_yaml)
+                                     (i+1, corrected_packets[i]["corrected"], decode_errs_s, parsed_yaml)
     if len(corrected_packets) > 0:
         corrected_packets_summary += "To learn more about the decoded data, see <a href=\"https://docs.google.com/spreadsheets/d/e/2PACX-1vSCpr4KPwXkXyEMv6oPps-kVsNsd_Ell5whlvj-0T_5N9dIH5jvBTHCl6eZ_xVBugYEiL5CNR-p45G7/pubhtml?gid=589366724\">this table</a>"
 
-    extra_msg = ""
-    if packets_published:
-        if args["submit_to_db"]:
-            extra_msg = "Your packets were added to our database and should have been posted to <a href=\"https://twitter.com/equisat_bot\">Twitter</a>!\n\n"
+    if num_published > 0:
+        if args["post_publicly"]:
+            extra_msg = "%d of your packets were added to our database and should have been posted to <a href=\"https://twitter.com/equisat_bot\">Twitter</a>!\n\n" % num_published
         else:
-            extra_msg = "Your packets were added to our database!\n\n"
+            extra_msg = "%d of your packets were added to our database!\n\n" % num_published
+    elif args["submit_to_db"]:
+        extra_msg = "Your packets unfortunately had too many errors to be added to our database or posted publicly."
 
     cleaned_wavfilename = os.path.basename(wavfilename)
 

@@ -10,7 +10,7 @@ import time
 import logging
 
 QUEUE_EMPTY_POLL_PERIOD = 2
-FLOWGRAPH_POLL_PERIOD_S = 0.2
+FLOWGRAPH_POLL_PERIOD_S = 2
 
 class DecoderQueue:
     def __init__(self):
@@ -73,7 +73,7 @@ class DecoderQueue:
 
                     for i in range(tb.message_store_block_raw.num_messages()):
                         msg = tb.message_store_block_raw.get_message(i)
-                        raw_packets.append(bytearray(pmt.u8vector_elements(pmt.cdr(msg))))
+                        raw_packets.append(binascii.hexlify(bytearray(pmt.u8vector_elements(pmt.cdr(msg)))))
 
                     for i in range(tb.message_store_block_corrected.num_messages()):
                         msg = tb.message_store_block_corrected.get_message(i)
@@ -81,8 +81,8 @@ class DecoderQueue:
                         raw = pmt.u8vector_elements(pmt.dict_ref(pmt.car(msg), pmt.intern("raw"), pmt.get_PMT_NIL()))
                         decoded, decode_errs = packetparse.parse_packet(binascii.hexlify(bytearray(corrected)))
                         corrected_packets.append({
-                            "raw": bytearray(raw),
-                            "corrected": bytearray(corrected),
+                            "raw": binascii.hexlify(bytearray(raw)),
+                            "corrected": binascii.hexlify(bytearray(corrected)),
                             "parsed": decoded,
                             "decode_errs": decode_errs
                         })
