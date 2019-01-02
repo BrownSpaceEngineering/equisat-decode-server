@@ -38,7 +38,8 @@
                 <li>You can learn <a href="https://brownspace.org/receiving-equisat/">how to receive EQUiSat here</a>.</li>
                 <li>This app is intended for you to upload your best receptions rather than prolonged pass recordings.</li>
                 <li>You'll need to either doppler-correct while receiving the satellite or you should tune the frequency before recording each packet burst</li>
-                <li>If you're using a software-defined radio (SDR) and don't have doppler correction set up, the best approach is:
+                <li>The best way to receive EQUiSat with doppler correction is to pair a software-defined radio (SDR) with a satellite tracker. <a href="http://www.pe0sat.vgnet.nl/decoding/unix-tlm-decoding/">GQRX and GPredict</a> are a great combo for linux/mac, and <a href="https://www.youtube.com/watch?v=EK-sasjSAcg">SDRsharp and Orbitron</a> are good for Windows. With doppler correction you can simply record NFM audio throughout the entire pass and edit it later.</li>
+                <li>Alternatively, if you're using a SDR and don't have doppler correction set up, the best approach is:
                     <ol>
                         <li>Record the raw IQ data (baseband RF) during a pass</li>
                         <li>Replay the IQ recording and visually look for packets</li>
@@ -46,9 +47,8 @@
                         <li>Rewind the IQ recording and record the FM audio at your configured frequency</li>
                     </ol>
                 </li>
-                <li>Alternatively, if you have satellite tracking software for your SDR software, you can record the NFM audio throughout the entire pass.</li>
-                <li>You can also record audio from a handheld or other hardware NFM radio, while performing manual doppler correction.</li>
-                <li>For the latter two methods, you will likely need to shorten the recording to just the best packets before submitting it here. We recommend using an audio editor such as <a href="https://www.audacityteam.org/download/">Audacity</a> to do this (File->Export->Export Selected Audio is a useful trick)</li>
+                <li>You can also record audio from a handheld or other hardware NFM radio, while performing manual doppler correction or using <a href="https://vk4tmz.blogspot.com/2018/07/gpredict-radio-control-ft991a-via.html">rigctl</a>.</li>
+                <li>You will likely need to shorten the recording to just the best packets before submitting it here. We recommend using an audio editor such as <a href="https://www.audacityteam.org/download/">Audacity</a> to do this (File->Export->Export Selected Audio is a useful trick)</li>
                 <li>Lowering the bandwidth and applying noise filters always helps, but make sure not to significantly clip the signal</li>
                 <li>For reference and comparison, <a href="/static/good_equisat_fm_recording.wav">this is an example</a> of an FM recording which will be successfully decoded by this app (please don't submit it to our database).</li>
             </ul>
