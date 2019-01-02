@@ -54,14 +54,10 @@ body {
 }
 
 .bseLogo {
-    width: 35px;
-    height: 35px;
     margin-right: 5px;
 }
 
 .satLogo {
-    width: 32px;
-    height: 32px;
     -webkit-filter: invert(100%);
     filter: invert(100%);
 }

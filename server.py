@@ -51,10 +51,6 @@ def too_large_request(e):
 def page_not_found(e):
     return render_template('error_page.html', error=e, msg=""), 404
 
-@app.route("/test")
-def test():
-    return render_template("decode_submit.html", title="this is a title", message="this is a bit longer of a message to pad it out and be realistic")
-
 @app.route('/upload', methods=["POST"])
 def upload_form():
     # initial validation
