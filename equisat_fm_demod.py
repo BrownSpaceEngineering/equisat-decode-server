@@ -4,7 +4,7 @@
 # GNU Radio Python Flow Graph
 # Title: Equisat Fm Demod
 # Description: This flowgraph generates the flowgraph used in decode.py
-# Generated: Sun Dec 30 16:07:39 2018
+# Generated: Fri Jan  4 02:05:18 2019
 ##################################################
 
 
@@ -33,21 +33,27 @@ class equisat_fm_demod(gr.top_block):
         ##################################################
         # Variables
         ##################################################
-        self.gain_mu = gain_mu = 0.550
+        self.symbol_depth = symbol_depth = 40
+        self.decimation = decimation = 2
+
+        self.variable_rrc_filter_taps_0 = variable_rrc_filter_taps_0 = firdes.root_raised_cosine(1.0, sample_rate/decimation, 4800, 0.2, symbol_depth*(sample_rate/decimation/4800))
+
+        self.gain_mu = gain_mu = 0.100
 
         ##################################################
         # Blocks
         ##################################################
         self.message_store_block_raw = blocks.message_debug()
         self.message_store_block_corrected = blocks.message_debug()
-        self.low_pass_filter_0 = filter.fir_filter_fff(1, firdes.low_pass(
-        	1, sample_rate, 4800, 1000, firdes.WIN_HAMMING, 6.76))
+        self.fir_filter_xxx_0 = filter.fir_filter_fff(decimation, (variable_rrc_filter_taps_0))
+        self.fir_filter_xxx_0.declare_sample_delay(0)
         self.equisat_decoder_equisat_fec_decoder_0 = equisat_decoder.equisat_fec_decoder()
         self.equisat_decoder_equisat_4fsk_preamble_detect_0 = equisat_decoder.equisat_4fsk_preamble_detect(255,0.33, 96)
         self.equisat_decoder_equisat_4fsk_block_decode_0 = equisat_decoder.equisat_4fsk_block_decode(255, False)
-        self.digital_clock_recovery_mm_xx_0 = digital.clock_recovery_mm_ff(sample_rate/4800.0, 0.25*gain_mu*gain_mu, 0.5, gain_mu, 0.005)
+        self.digital_clock_recovery_mm_xx_0 = digital.clock_recovery_mm_ff((sample_rate/decimation)/4800.0, 0.25*gain_mu*gain_mu, 0.5, gain_mu, 0.005)
         self.blocks_wavfile_source_0 = blocks.wavfile_source(wavfile, False)
         self.blocks_multiply_const_vxx_0_0 = blocks.multiply_const_vff((10, ))
+        self.blocks_message_debug_0 = blocks.message_debug()
 
         ##################################################
         # Connections
@@ -56,24 +62,43 @@ class equisat_fm_demod(gr.top_block):
         self.msg_connect((self.equisat_decoder_equisat_4fsk_block_decode_0, 'out'), (self.message_store_block_raw, 'store'))
         self.msg_connect((self.equisat_decoder_equisat_4fsk_preamble_detect_0, 'out'), (self.equisat_decoder_equisat_4fsk_block_decode_0, 'in'))
         self.msg_connect((self.equisat_decoder_equisat_fec_decoder_0, 'out'), (self.message_store_block_corrected, 'store'))
-        self.connect((self.blocks_multiply_const_vxx_0_0, 0), (self.low_pass_filter_0, 0))
+        self.connect((self.blocks_multiply_const_vxx_0_0, 0), (self.fir_filter_xxx_0, 0))
         self.connect((self.blocks_wavfile_source_0, 0), (self.blocks_multiply_const_vxx_0_0, 0))
         self.connect((self.digital_clock_recovery_mm_xx_0, 0), (self.equisat_decoder_equisat_4fsk_preamble_detect_0, 0))
-        self.connect((self.low_pass_filter_0, 0), (self.digital_clock_recovery_mm_xx_0, 0))
+        self.connect((self.fir_filter_xxx_0, 0), (self.digital_clock_recovery_mm_xx_0, 0))
 
     def get_sample_rate(self):
         return self.sample_rate
 
     def set_sample_rate(self, sample_rate):
         self.sample_rate = sample_rate
-        self.low_pass_filter_0.set_taps(firdes.low_pass(1, self.sample_rate, 4800, 1000, firdes.WIN_HAMMING, 6.76))
-        self.digital_clock_recovery_mm_xx_0.set_omega(self.sample_rate/4800.0)
+        self.digital_clock_recovery_mm_xx_0.set_omega((self.sample_rate/self.decimation)/4800.0)
 
     def get_wavfile(self):
         return self.wavfile
 
     def set_wavfile(self, wavfile):
         self.wavfile = wavfile
+
+    def get_symbol_depth(self):
+        return self.symbol_depth
+
+    def set_symbol_depth(self, symbol_depth):
+        self.symbol_depth = symbol_depth
+
+    def get_decimation(self):
+        return self.decimation
+
+    def set_decimation(self, decimation):
+        self.decimation = decimation
+        self.digital_clock_recovery_mm_xx_0.set_omega((self.sample_rate/self.decimation)/4800.0)
+
+    def get_variable_rrc_filter_taps_0(self):
+        return self.variable_rrc_filter_taps_0
+
+    def set_variable_rrc_filter_taps_0(self, variable_rrc_filter_taps_0):
+        self.variable_rrc_filter_taps_0 = variable_rrc_filter_taps_0
+        self.fir_filter_xxx_0.set_taps((self.variable_rrc_filter_taps_0))
 
     def get_gain_mu(self):
         return self.gain_mu

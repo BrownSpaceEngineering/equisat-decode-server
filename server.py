@@ -20,7 +20,7 @@ else:
 # config
 NUM_DECODER_PROCESSES = 1
 AUDIO_UPLOAD_FOLDER = 'wav_uploads/'
-MAX_AUDIOFILE_DURATION_S = 60
+MAX_AUDIOFILE_DURATION_S = 140
 MAX_AUDIOFILE_SIZE_B = 20e6 # set in nginx config for production server
 PACKET_API_ROUTE = "http://api.brownspace.org/equisat/receive/raw"
 
