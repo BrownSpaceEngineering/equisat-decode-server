@@ -9,7 +9,6 @@ from yagmail import validate
 from yagmail.error import YagInvalidEmailAddress
 import datetime
 import logging
-import time
 
 import config
 if config.decoder_enabled:
@@ -20,10 +19,9 @@ else:
 
 # config
 NUM_DECODER_PROCESSES = 1
-WAV_UPLOAD_FOLDER = 'wav_uploads/'
-ALLOWED_EXTENSIONS = ("wav", "wave")
-MAX_WAVFILE_DURATION_S = 20
-MAX_WAVFILE_SIZE_B = 10e6 # set in nginx config for production server
+AUDIO_UPLOAD_FOLDER = 'wav_uploads/'
+MAX_AUDIOFILE_DURATION_S = 60
+MAX_AUDIOFILE_SIZE_B = 20e6 # set in nginx config for production server
 PACKET_API_ROUTE = "http://api.brownspace.org/equisat/receive/raw"
 
 app = Flask(__name__)
@@ -41,7 +39,7 @@ else:
 
 @app.route('/')
 def root():
-    return render_template('index.html', max_wavfile_size_b=MAX_WAVFILE_SIZE_B, max_wavfile_duration_s=MAX_WAVFILE_DURATION_S)
+    return render_template('index.html', max_audiofile_size_b=MAX_AUDIOFILE_SIZE_B, max_audiofile_duration_s=MAX_AUDIOFILE_DURATION_S)
 
 @app.errorhandler(413)
 def too_large_request(e):
@@ -81,20 +79,27 @@ def upload_form():
         message = "It appears that you entered a time in the future for the time you received this transmission. Check that you chose the correct time zone and entered the date and time correctly."
         return render_template("decode_submit.html", title=title, message=message)
 
-
-    # wavfile validation
-    wavfilename = save_wavfile()
-    if wavfilename is None:
-        title = "No WAV file provided or wrong file type"
-        message = "Please make sure to upload a WAV file (.wav or .wave) according to the specified requirements"
+    # audio file validation
+    filename = save_audiofile()
+    if filename is None:
+        title = "No audio file provided"
+        message = "Please make sure to upload an audio file using the form."
     else:
-        # get metadata for filtering
-        sample_rate, duration, _ = decoder.get_wav_info(wavfilename)
+        # convert audio file to WAV and get metadata for filtering
+        wavfilename, sample_rate, duration, _ = decoder.convert_audiofile(filename)
+        # remove original file now, unless it was originally a wav
+        if filename != wavfilename:
+            os.remove(filename)
 
-        if duration > MAX_WAVFILE_DURATION_S:
-            title = "WAV file too long"
+        if wavfilename is None:
+            title = "Audio file conversion failed"
+            message = "We need to convert your audio file to a 16-bit PCM WAV file, but the conversion failed. " \
+                      "Make sure your audio file format is supported by libsndfile (see link on main page)." \
+                      "You can also try converting the file yourself using a program such as Audacity or ffmpeg."
+        elif duration > MAX_AUDIOFILE_DURATION_S:
+            title = "Audio file too long"
             message = "Your submitted file was too long (maximum duration is %ds, yours was %ds). " \
-                      "Try shortening the audio duration using a program such as Audacity." % (MAX_WAVFILE_DURATION_S, duration)
+                      "You can try shortening the audio duration using a program such as Audacity." % (MAX_AUDIOFILE_DURATION_S, duration)
             # remove the unused file
             os.remove(wavfilename)
         else:
@@ -108,7 +113,7 @@ def upload_form():
                 "submit_to_db": request.form.has_key("submit_to_db") or request.form.has_key("post_publicly"), # submit to db is prereq
                 "post_publicly": request.form.has_key("post_publicly")
             })
-            title = "WAV file submitted successfully!"
+            title = "Audio file submitted successfully!"
             message = "Your file is queued to be decoded. You should be receiving an email shortly (even if there were no results). "
             if request.form.has_key("submit_to_db"):
                 message += "Thank you so much for your help in providing us data on EQUiSat!"
@@ -117,35 +122,28 @@ def upload_form():
 
     return render_template("decode_submit.html", title=title, message=message)
 
-def save_wavfile():
+def save_audiofile():
     # check if the post request has the file part
-    if 'wavfile' not in request.files:
+    if 'audiofile' not in request.files:
         app.logger.warning("Invalid form POST for file upload")
         return None
 
-    wavfile = request.files['wavfile']
+    audiofile = request.files['audiofile']
     # if user does not select file, browser also
     # submit an empty part without filename
-    if wavfile.filename == '':
+    if audiofile.filename == '':
         return None
-    if wavfile and allowed_file(wavfile.filename):
+    if audiofile:
         # clean filename for security
-        filename = secure_filename(wavfile.filename)
-        filepath = os.path.join(WAV_UPLOAD_FOLDER, filename)
-        wavfile.save(filepath)
+        filename = secure_filename(audiofile.filename)
+        filepath = os.path.join(AUDIO_UPLOAD_FOLDER, filename)
+        audiofile.save(filepath)
         return filepath
-
-def allowed_file(filename):
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def on_complete_decoding(wavfilename, packets, args):
     # remove wavfile because we're done with it
     app.logger.debug("[%s] removing used wavfile %s", args["station_name"], wavfilename)
     os.remove(wavfilename)
-
-    # add a little delay :/
-    time.sleep(8)
 
     # publish packet if user desires
     num_published = publish_packets(packets, args)
@@ -215,19 +213,21 @@ def send_decode_results(wavfilename, packets, args, num_published):
         corrected_packets_summary += "To learn more about the decoded data, see <a href=\"https://docs.google.com/spreadsheets/d/e/2PACX-1vSCpr4KPwXkXyEMv6oPps-kVsNsd_Ell5whlvj-0T_5N9dIH5jvBTHCl6eZ_xVBugYEiL5CNR-p45G7/pubhtml?gid=589366724\">this table</a>"
 
     extra_msg = ""
+    if len(raw_packets) == 0 or len(corrected_packets) == 0:
+        extra_msg = "Sorry nothing was found! We're still working on the decoder, so keep trying and check back later!\n\n"
     if num_published > 0:
         if args["post_publicly"]:
             extra_msg = "%d of your packets were added to our database and should have been posted to <a href=\"https://twitter.com/equisat_bot\">Twitter</a>!\n\n" % num_published
         else:
             extra_msg = "%d of your packets were added to our database!\n\n" % num_published
     elif args["submit_to_db"]:
-        extra_msg = "Your packets unfortunately had too many errors to be added to our database or posted publicly."
+        extra_msg = "Your packets unfortunately had too many errors to be added to our database or posted publicly.\n\n"
 
     cleaned_wavfilename = os.path.basename(wavfilename)
 
     contents = """Hello %s,
     
-Here are your results from the <a href="http://decoder.brownspace.org">EQUiSat Decoder</a> for your file '%s':
+Here are your results from the <a href="http://decoder.brownspace.org">EQUiSat Decoder</a> for your converted file '%s':
 
 %s
 

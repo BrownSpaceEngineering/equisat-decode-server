@@ -4,3 +4,4 @@ yagmail
 pyyaml
 requests
 gevent
+pysoundfile

@@ -4,13 +4,14 @@ from equisat_fm_demod import equisat_fm_demod
 from packetparse import packetparse
 import binascii
 import pmt
-import wave
+import soundfile as sf
 import sys
 import time
 import logging
 
 QUEUE_EMPTY_POLL_PERIOD = 2
 FLOWGRAPH_POLL_PERIOD_S = 2
+WAVFILE_CONV_SUBTYPE = "PCM_16"
 
 class DecoderQueue:
     def __init__(self):
@@ -37,12 +38,32 @@ class DecoderQueue:
         })
 
     @staticmethod
-    def get_wav_info(wavfilename):
-        wf = wave.open(wavfilename)
-        sample_rate = wf.getframerate()
-        nframes = wf.getnframes()
+    def get_audio_info(filename):
+        data, sample_rate = sf.read(filename)
+        nframes = len(data)
         duration = nframes  / sample_rate
         return sample_rate, duration, nframes
+
+    @staticmethod
+    def convert_audiofile(filename, subtype=WAVFILE_CONV_SUBTYPE):
+        try:
+            data, sample_rate = sf.read(filename)
+            doti = filename.rfind(".")
+            if doti == -1:
+                wavfilename = filename + ".wav"
+            else:
+                wavfilename = filename[:doti] + ".wav"
+
+            sf.write(wavfilename, data, sample_rate, subtype=subtype)
+
+            nframes = len(data)
+            duration = nframes / sample_rate
+            return wavfilename, sample_rate, duration, nframes
+
+        except RuntimeError as ex: # soundfile error
+            logging.error("Error converting audio file '%s' to wav", filename)
+            logging.exception(ex)
+            return None, 0, 0, 0
 
     @staticmethod
     def decode_worker(dec_queue, stopping):
@@ -53,7 +74,7 @@ class DecoderQueue:
                     next_demod = dec_queue.get(timeout=QUEUE_EMPTY_POLL_PERIOD)
 
                     wavfilename = next_demod["wavfilename"]
-                    sample_rate, duration, nframes = DecoderQueue.get_wav_info(wavfilename)
+                    sample_rate, duration, nframes = DecoderQueue.get_audio_info(wavfilename)
 
                     # spawn the GNU radio flowgraph and run it
                     tb = equisat_fm_demod(wavfile=wavfilename, sample_rate=sample_rate)

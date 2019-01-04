@@ -65,7 +65,6 @@
 
             <p><strong>This app and decoder are still experimental, and currently a very clean signal is required to successfully decode a packet. So don't get discouraged, and check back in the future as we make improvements!</strong></p>
             <p>Note that this app will email you even if the decoder found no data.</p>
-
         </div>
 
         <div id="upload-form">
@@ -73,9 +72,9 @@
             <p></p>
             <form action="/upload" method="POST" enctype="multipart/form-data">
                 <div class="form-group">
-                    <label for="email1">FM-demodulated WAV recording</label>
-                    <input type="file" name="wavfile" id="wavfile-upload" class="form-control-file" aria-describedby="fileHelp">
-                    <small id="fileHelp" class="form-text text-muted">Must be a .wav file below {{ max_wavfile_size_b / 1000000 }} MB in size and under {{ max_wavfile_duration_s }}s in duration.</small>
+                    <label for="email1">FM-demodulated audio recording</label>
+                    <input type="file" name="audiofile" id="audiofile-upload" class="form-control-file" aria-describedby="fileHelp">
+                    <small id="fileHelp" class="form-text text-muted">Must be a maximum quality audio file below {{ max_audiofile_size_b / 1000000 }} MB in size and under {{ max_audiofile_duration_s }}s in duration, <a href="http://www.mega-nerd.com/libsndfile/#Features">supported by libsndfile</a>.</small>
                 </div>
 
                 <div class="form-group">

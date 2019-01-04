@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+echo "WARNING: may overwrite certbot configuration!"
+sleep 10
 git submodule init
 git submodule update
 pip install -r requirements.txt
