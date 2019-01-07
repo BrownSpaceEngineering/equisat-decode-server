@@ -158,7 +158,7 @@ def decode_satnogs():
         return render_template("decode_submit.html", title=title, message=message)
 
     if request.form["start_s"] == "":
-        start_s = None
+        start_s = 0
     else:
         try:
             start_s = int(request.form["start_s"])
@@ -186,7 +186,7 @@ def decode_satnogs():
             message = "Your start time was not a valid integer number"
             return render_template("decode_submit.html", title=title, message=message)
 
-    if start_s >= stop_s:
+    if start_s != 0 and stop_s is not None and start_s >= stop_s:
         title = "Start time wasn't before stop time"
         message = "Your start time needs to be less than your stop time"
         return render_template("decode_submit.html", title=title, message=message)
