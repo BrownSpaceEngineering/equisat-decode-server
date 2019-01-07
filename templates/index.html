@@ -39,128 +39,198 @@
     </div>
 
     <div id="form-section" class="page-width">
-        <div id="req_and_recs">
-            <h5>This website allows you to decode receptions of Brown Space Engineering's first satellite <a href="https://brownspace.org/equisat">EQUiSat</a>, by uploading NFM-demodulated (narrow frequency modulation) recordings and receiving an email with any data decoded from the transmission. You can also automatically submit that data to our database and have your reception posted publicly on Twitter!</h5>
-            <p>We have a few recommendations for how to successfully produce these files:</p>
 
-            <h4>Recommendations:</h4>
-            <ul class="info_list">
-                <li>You can learn <a href="https://brownspace.org/receiving-equisat/">how to receive EQUiSat here</a>.</li>
-                <li>This app is intended for you to upload your best receptions rather than prolonged pass recordings.</li>
-                <li>You'll need to either doppler-correct while receiving the satellite or you should tune the frequency before recording each packet burst</li>
-                <li>The best way to receive EQUiSat with doppler correction is to pair a software-defined radio (SDR) with a satellite tracker. <a href="http://www.pe0sat.vgnet.nl/decoding/unix-tlm-decoding/">GQRX and GPredict</a> are a great combo for linux/mac, and <a href="https://www.youtube.com/watch?v=EK-sasjSAcg">SDRsharp and Orbitron</a> are good for Windows. With doppler correction you can simply record NFM audio throughout the entire pass and edit it later.</li>
-                <li>Alternatively, if you're using a SDR and don't have doppler correction set up, the best approach is:
-                    <ol>
-                        <li>Record the raw IQ data (baseband RF) during a pass</li>
-                        <li>Replay the IQ recording and visually look for packets</li>
-                        <li>Once you see one, visually line up the frequency you're tuned to to the center of the packet waveform</li>
-                        <li>Rewind the IQ recording and record the FM audio at your configured frequency</li>
-                    </ol>
-                </li>
-                <li>You can also record audio from a handheld or other hardware NFM radio, while performing manual doppler correction or using <a href="https://vk4tmz.blogspot.com/2018/07/gpredict-radio-control-ft991a-via.html">rigctl</a>.</li>
-                <li>You will likely need to shorten the recording to just the best packets before submitting it here. We recommend using an audio editor such as <a href="https://www.audacityteam.org/download/">Audacity</a> to do this (File->Export->Export Selected Audio is a useful trick)</li>
-                <li>Lowering the bandwidth and applying noise filters always helps, but make sure not to significantly clip the signal</li>
-                <li>For reference and comparison, <a href="/static/good_equisat_fm_recording.wav">this is an example</a> of an FM recording which will be successfully decoded by this app (please don't submit it to our database).</li>
-            </ul>
+        <h5>This website allows you to decode receptions of Brown Space Engineering's first satellite <a href="https://brownspace.org/equisat">EQUiSat</a> by providing either an audio file or specifying a SatNOGS satellite observation to decode. You then receive an email with any data decoded from the transmission. You can also automatically submit that data to our database and have your reception posted publicly on Twitter!</h5>
 
-            <p><strong>This app and decoder are still experimental, and currently a very clean signal is required to successfully decode a packet. So don't get discouraged, and check back in the future as we make improvements!</strong></p>
-            <p>Note that this app will email you even if the decoder found no data.</p>
-        </div>
+        <ul class="nav nav-tabs justify-content-center" id="decode-tabs" role="tablist">
+            <li class="nav-item">
+                <a class="nav-link active" id="decode-file-tab" data-toggle="tab" href="#decode-file" role="tab" aria-controls="decode-file" aria-selected="true">Audio File</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="decode-satnogs-tab" data-toggle="tab" href="#decode-satnogs" role="tab" aria-controls="decode-satnogs" aria-selected="false">SatNOGS Observation</a>
+            </li>
+        </ul>
 
-        <div id="upload-form">
-            <h4>Transmission Upload Form</h4>
-            <p></p>
-            <form action="/upload" method="POST" enctype="multipart/form-data">
-                <div class="form-group">
-                    <label for="email1">FM-demodulated audio recording</label>
-                    <input type="file" name="audiofile" id="audiofile-upload" class="form-control-file" aria-describedby="fileHelp">
-                    <small id="fileHelp" class="form-text text-muted">Must be a maximum quality audio file below {{ max_audiofile_size_b / 1000000 }} MB in size and under {{ max_audiofile_duration_s }}s in duration, <a href="http://www.mega-nerd.com/libsndfile/#Features">supported by libsndfile</a>.</small>
+        <div class="tab-content" id="decode-tab-content">
+            <div id="decode-file" class="tab-pane fade show active" role="tabpanel" aria-labelledby="decode-file-tab">
+                <div class="form-info">
+                    <p>This page allows you to decode an EQUiSat transmission from an NFM-demodulated (narrow frequency modulation) audio recording. We have a few recommendations for how to successfully produce these recordings:</p>
+
+                    <h4>Recommendations:</h4>
+                    <ul class="info_list">
+                        <li>You can learn <a href="https://brownspace.org/receiving-equisat/">how to receive EQUiSat here</a>.</li>
+                        <li>This app is intended for you to upload your best receptions rather than prolonged pass recordings.</li>
+                        <li><strong>Important: the packets need to have an audio amplitude in a particular range for best decoding performance. The peak amplitude inside the packet should be about 50% of maximum; see the <a href="/static/good_equisat_fm_recording.wav">example recording</a> for reference.</strong></li>
+                        <li>You'll need to either doppler-correct while receiving the satellite or you should tune the frequency before recording each packet burst</li>
+                        <li>The best way to receive EQUiSat with doppler correction is to pair a software-defined radio (SDR) with a satellite tracker. <a href="http://www.pe0sat.vgnet.nl/decoding/unix-tlm-decoding/">GQRX and GPredict</a> are a great combo for linux/mac, and <a href="https://www.youtube.com/watch?v=EK-sasjSAcg">SDRsharp and Orbitron</a> are good for Windows. With doppler correction you can simply record NFM audio throughout the entire pass and edit it later.</li>
+                        <li>Alternatively, if you're using a SDR and don't have doppler correction set up, the best approach is:
+                            <ol>
+                                <li>Record the raw IQ data (baseband RF) during a pass</li>
+                                <li>Replay the IQ recording and visually look for packets</li>
+                                <li>Once you see one, visually line up the frequency you're tuned to to the center of the packet waveform</li>
+                                <li>Rewind the IQ recording and record the FM audio at your configured frequency</li>
+                            </ol>
+                        </li>
+                        <li>You can also record audio from a handheld or other hardware NFM radio, while performing manual doppler correction or using <a href="https://vk4tmz.blogspot.com/2018/07/gpredict-radio-control-ft991a-via.html">rigctl</a>.</li>
+                        <li>You will likely need to shorten the recording to just the best packets before submitting it here. We recommend using an audio editor such as <a href="https://www.audacityteam.org/download/">Audacity</a> to do this (File->Export->Export Selected Audio is a useful trick)</li>
+                        <li>Lowering the bandwidth and applying noise filters always helps, but make sure not to significantly clip the signal</li>
+                        <li>For reference and comparison, <a href="/static/good_equisat_fm_recording.wav">this is an example</a> of an FM recording which will be successfully decoded by this app (please don't submit it to our database).</li>
+                    </ul>
+
+                    <p><strong>This app and decoder are still experimental, and currently a very clean reception is required to successfully decode a packet. So don't get discouraged, and check back in the future as we make improvements!</strong></p>
+                    <p>Note that this app will email you even if the decoder found no data (email us if it doesn't!).</p>
                 </div>
 
-                <div class="form-group">
-                    <label for="email1">Email address</label>
-                    <input type="email" name="email" class="form-control" id="email1" aria-describedby="emailHelp" placeholder="Enter email">
-                    <small id="emailHelp" class="form-text text-muted">We don't store your email address after sending you the results.</small>
+                <div class="upload-form">
+                    <h4>Transmission Upload Form</h4>
+                    <p></p>
+                    <form action="/decode_file" method="POST" enctype="multipart/form-data">
+                        <div class="form-group">
+                            <label for="audiofile-upload">FM-demodulated audio recording</label>
+                            <input type="file" name="audiofile" id="audiofile-upload" class="form-control-file" aria-describedby="fileHelp">
+                            <small id="fileHelp" class="form-text text-muted">Must be a maximum quality audio file below {{ max_audiofile_size_b / 1000000 }} MB in size and under {{ max_audiofile_duration_s }}s in duration, <a href="http://www.mega-nerd.com/libsndfile/#Features">supported by libsndfile</a>.</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="email1">Email address</label>
+                            <input type="email" name="email" class="form-control" id="email1" aria-describedby="emailHelp1" placeholder="Enter email">
+                            <small id="emailHelp1" class="form-text text-muted">We don't store your email address after sending you the results.</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Station name or callsign</label>
+                            <input type="text" name="station_name" class="form-control" id="station_name1" aria-describedby="stationNameHelp" placeholder="Enter station identifier">
+                            <small id="stationNameHelp" class="form-text text-muted">Your name, callsign, or just the name of the receiving station. You can leave this blank if you want to be anonymous. </small>
+                        </div>
+
+                        <div class="form-group">
+                          <label>Time received (date, time, and timezone)</label>
+                          <div class="input-group">
+                            <input type="date" name="rx_time_date" aria-label="Date" class="form-control" placeholder="yyyy-mm-dd" aria-describedby="receiveTimeHelp">
+                            <input type="time" name="rx_time_time" aria-label="Time" class="form-control" placeholder="hh:mm">
+                              <!--from https://gist.github.com/nodesocket/3919205-->
+                            <select name="rx_time_timezone">
+                              <option value="-12:00">(GMT -12:00) Eniwetok, Kwajalein</option>
+                              <option value="-11:00">(GMT -11:00) Midway Island, Samoa</option>
+                              <option value="-10:00">(GMT -10:00) Hawaii</option>
+                              <option value="-09:50">(GMT -9:30) Taiohae</option>
+                              <option value="-09:00">(GMT -9:00) Alaska</option>
+                              <option value="-08:00">(GMT -8:00) Pacific Time (US &amp; Canada)</option>
+                              <option value="-07:00">(GMT -7:00) Mountain Time (US &amp; Canada)</option>
+                              <option value="-06:00">(GMT -6:00) Central Time (US &amp; Canada), Mexico City</option>
+                              <option value="-05:00">(GMT -5:00) Eastern Time (US &amp; Canada), Bogota, Lima</option>
+                              <option value="-04:50">(GMT -4:30) Caracas</option>
+                              <option value="-04:00">(GMT -4:00) Atlantic Time (Canada), Caracas, La Paz</option>
+                              <option value="-03:50">(GMT -3:30) Newfoundland</option>
+                              <option value="-03:00">(GMT -3:00) Brazil, Buenos Aires, Georgetown</option>
+                              <option value="-02:00">(GMT -2:00) Mid-Atlantic</option>
+                              <option value="-01:00">(GMT -1:00) Azores, Cape Verde Islands</option>
+                              <option value="+00:00" selected="selected">(GMT) Western Europe Time, London, Lisbon, Casablanca</option>
+                              <option value="+01:00">(GMT +1:00) Brussels, Copenhagen, Madrid, Paris</option>
+                              <option value="+02:00">(GMT +2:00) Kaliningrad, South Africa</option>
+                              <option value="+03:00">(GMT +3:00) Baghdad, Riyadh, Moscow, St. Petersburg</option>
+                              <option value="+03:50">(GMT +3:30) Tehran</option>
+                              <option value="+04:00">(GMT +4:00) Abu Dhabi, Muscat, Baku, Tbilisi</option>
+                              <option value="+04:50">(GMT +4:30) Kabul</option>
+                              <option value="+05:00">(GMT +5:00) Ekaterinburg, Islamabad, Karachi, Tashkent</option>
+                              <option value="+05:50">(GMT +5:30) Bombay, Calcutta, Madras, New Delhi</option>
+                              <option value="+05:75">(GMT +5:45) Kathmandu, Pokhara</option>
+                              <option value="+06:00">(GMT +6:00) Almaty, Dhaka, Colombo</option>
+                              <option value="+06:50">(GMT +6:30) Yangon, Mandalay</option>
+                              <option value="+07:00">(GMT +7:00) Bangkok, Hanoi, Jakarta</option>
+                              <option value="+08:00">(GMT +8:00) Beijing, Perth, Singapore, Hong Kong</option>
+                              <option value="+08:75">(GMT +8:45) Eucla</option>
+                              <option value="+09:00">(GMT +9:00) Tokyo, Seoul, Osaka, Sapporo, Yakutsk</option>
+                              <option value="+09:50">(GMT +9:30) Adelaide, Darwin</option>
+                              <option value="+10:00">(GMT +10:00) Eastern Australia, Guam, Vladivostok</option>
+                              <option value="+10:50">(GMT +10:30) Lord Howe Island</option>
+                              <option value="+11:00">(GMT +11:00) Magadan, Solomon Islands, New Caledonia</option>
+                              <option value="+11:50">(GMT +11:30) Norfolk Island</option>
+                              <option value="+12:00">(GMT +12:00) Auckland, Wellington, Fiji, Kamchatka</option>
+                              <option value="+12:75">(GMT +12:45) Chatham Islands</option>
+                              <option value="+13:00">(GMT +13:00) Apia, Nukualofa</option>
+                              <option value="+14:00">(GMT +14:00) Line Islands, Tokelau</option>
+                            </select>
+                          </div>
+                          <small id="receiveTimeHelp" class="form-text text-muted">Your best estimate of the exact time you started receiving this audio. The more precise the better! </small>
+                        </div>
+
+                        <div class="form-check">
+                          <input class="form-check-input" type="checkbox" value="" id="submit_to_db1" name="submit_to_db">
+                          <label class="form-check-label" for="submit_to_db1">
+                            Submit received data to our database? (we'd really appreciate it)
+                          </label>
+                        </div>
+                        <div class="form-check">
+                          <input class="form-check-input" type="checkbox" value="" id="post_publicly1" name="post_publicly">
+                          <label class="form-check-label" for="submit_to_db1">
+                              Post your data with <a href="https://twitter.com/equisat_bot">our Twitter bot</a>?
+                          </label>
+                        </div>
+                        <input type="submit" class="btn btn-success btn-submit" value="Submit">
+                    </form>
                 </div>
-                <div class="form-group">
-                    <label>Station name</label>
-                    <input type="text" name="station_name" class="form-control" id="station_name1" aria-describedby="stationNameHelp" placeholder="Enter station identifier">
-                    <small id="stationNameHelp" class="form-text text-muted">Your name, callsign, or just the name of the receiving station. You can leave this blank if you want to be anonymous. </small>
+            </div>
+
+            <div id="decode-satnogs" class="tab-pane fade" role="tabpanel" aria-labelledby="decode-satnogs-tab">
+                <div class="form-info">
+                    <p>This page allows you to decode an EQUiSat transmission from an observation made by the <a href="https://network.satnogs.org">SatNOGS network</a> of open-source and publicly available ground stations. You can find observations of EQUiSat by SatNOGS stations <a href="https://network.satnogs.org/observations/?norad=43552">here</a>, and if you create an account on SatNOGS you can even schedule your own observations!</p>
+
+                    <p><strong>This app and decoder are still experimental, and currently a very clean reception is required to successfully decode a packet. So many SatNOGS observations may not be decodable, but we're always making improvements!</strong></p>
+                    <p>Note that this app will email you even if the decoder found no data (email us if it doesn't!).</p>
                 </div>
 
-                <div class="form-group">
-                  <label>Time received (date, time, and timezone)</label>
-                  <div class="input-group">
-                    <input type="date" name="rx_time_date" aria-label="Date" class="form-control" placeholder="yyyy-mm-dd" aria-describedby="receiveTimeHelp">
-                    <input type="time" name="rx_time_time" aria-label="Time" class="form-control" placeholder="hh:mm">
-                      <!--from https://gist.github.com/nodesocket/3919205-->
-                    <select name="rx_time_timezone">
-                      <option value="-12:00">(GMT -12:00) Eniwetok, Kwajalein</option>
-                      <option value="-11:00">(GMT -11:00) Midway Island, Samoa</option>
-                      <option value="-10:00">(GMT -10:00) Hawaii</option>
-                      <option value="-09:50">(GMT -9:30) Taiohae</option>
-                      <option value="-09:00">(GMT -9:00) Alaska</option>
-                      <option value="-08:00">(GMT -8:00) Pacific Time (US &amp; Canada)</option>
-                      <option value="-07:00">(GMT -7:00) Mountain Time (US &amp; Canada)</option>
-                      <option value="-06:00">(GMT -6:00) Central Time (US &amp; Canada), Mexico City</option>
-                      <option value="-05:00">(GMT -5:00) Eastern Time (US &amp; Canada), Bogota, Lima</option>
-                      <option value="-04:50">(GMT -4:30) Caracas</option>
-                      <option value="-04:00">(GMT -4:00) Atlantic Time (Canada), Caracas, La Paz</option>
-                      <option value="-03:50">(GMT -3:30) Newfoundland</option>
-                      <option value="-03:00">(GMT -3:00) Brazil, Buenos Aires, Georgetown</option>
-                      <option value="-02:00">(GMT -2:00) Mid-Atlantic</option>
-                      <option value="-01:00">(GMT -1:00) Azores, Cape Verde Islands</option>
-                      <option value="+00:00" selected="selected">(GMT) Western Europe Time, London, Lisbon, Casablanca</option>
-                      <option value="+01:00">(GMT +1:00) Brussels, Copenhagen, Madrid, Paris</option>
-                      <option value="+02:00">(GMT +2:00) Kaliningrad, South Africa</option>
-                      <option value="+03:00">(GMT +3:00) Baghdad, Riyadh, Moscow, St. Petersburg</option>
-                      <option value="+03:50">(GMT +3:30) Tehran</option>
-                      <option value="+04:00">(GMT +4:00) Abu Dhabi, Muscat, Baku, Tbilisi</option>
-                      <option value="+04:50">(GMT +4:30) Kabul</option>
-                      <option value="+05:00">(GMT +5:00) Ekaterinburg, Islamabad, Karachi, Tashkent</option>
-                      <option value="+05:50">(GMT +5:30) Bombay, Calcutta, Madras, New Delhi</option>
-                      <option value="+05:75">(GMT +5:45) Kathmandu, Pokhara</option>
-                      <option value="+06:00">(GMT +6:00) Almaty, Dhaka, Colombo</option>
-                      <option value="+06:50">(GMT +6:30) Yangon, Mandalay</option>
-                      <option value="+07:00">(GMT +7:00) Bangkok, Hanoi, Jakarta</option>
-                      <option value="+08:00">(GMT +8:00) Beijing, Perth, Singapore, Hong Kong</option>
-                      <option value="+08:75">(GMT +8:45) Eucla</option>
-                      <option value="+09:00">(GMT +9:00) Tokyo, Seoul, Osaka, Sapporo, Yakutsk</option>
-                      <option value="+09:50">(GMT +9:30) Adelaide, Darwin</option>
-                      <option value="+10:00">(GMT +10:00) Eastern Australia, Guam, Vladivostok</option>
-                      <option value="+10:50">(GMT +10:30) Lord Howe Island</option>
-                      <option value="+11:00">(GMT +11:00) Magadan, Solomon Islands, New Caledonia</option>
-                      <option value="+11:50">(GMT +11:30) Norfolk Island</option>
-                      <option value="+12:00">(GMT +12:00) Auckland, Wellington, Fiji, Kamchatka</option>
-                      <option value="+12:75">(GMT +12:45) Chatham Islands</option>
-                      <option value="+13:00">(GMT +13:00) Apia, Nukualofa</option>
-                      <option value="+14:00">(GMT +14:00) Line Islands, Tokelau</option>
-                    </select>
-                  </div>
-                  <small id="receiveTimeHelp" class="form-text text-muted">Your best estimate of the exact time you started receiving this audio. The more precise the better! </small>
-                </div>
+                <div class="upload-form">
+                    <h4>SatNOGS Observation Submit Form</h4>
+                    <p></p>
+                    <form action="/decode_satnogs" method="POST" enctype="multipart/form-data">
+                        <div class="form-group">
+                            <label for="obs_id">Observation #</label>
+                            <input type="text" name="obs_id" id="obs_id" class="form-control" aria-describedby="obs_id_help" placeholder="Ex: 399173">
+                            <small id="obs_id_help" class="form-text text-muted">The observation number/ID for an <a href="https://db.satnogs.org/satellite/43552/">EQUiSat</a> observation in the <a href="https://satnogs.org/">SatNOGS</a> database. This is the number at the top of the SatNOGS observation page.</small>
+                        </div>
 
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" value="" id="submit_to_db" name="submit_to_db">
-                  <label class="form-check-label" for="submit_to_db">
-                    Submit received data to our database? (we'd really appreciate it)
-                  </label>
+                        <div class="form-group">
+                            <label for="start_s">Start and end time in observation</label>
+                            <div class="input-group">
+                                <input type="number" name="start_s" id="start_s" class="form-control" aria-describedby="start_stop_help" placeholder="Start time in seconds (blank for start)">
+                                <input type="number" name="stop_s" id="stop_s" class="form-control" aria-describedby="start_stop_help" placeholder="Stop time in seconds (blank for end)">
+                            </div>
+                            <small id="start_stop_help" class="form-text text-muted">The number of seconds into the observation to start and stop decoding. Leave either field blank to start/stop and the beginning/end. Note that the stop time minus the start time (the total duration) cannot exceed {{ max_audiofile_duration_s }}s. Also, the SatNOGS waterfall display is helpful for determining these values!</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="email2">Email address</label>
+                            <input type="email" name="email" class="form-control" id="email2" aria-describedby="emailHelp" placeholder="Enter email">
+                            <small id="emailHelp" class="form-text text-muted">We don't store your email address after sending you the results.</small>
+                        </div>
+
+                        <div class="form-check">
+                          <input class="form-check-input" type="checkbox" value="" id="submit_to_db" name="submit_to_db">
+                          <label class="form-check-label" for="submit_to_db">
+                            Submit received data to our database? (we'd really appreciate it)
+                          </label>
+                        </div>
+                        <div class="form-check">
+                          <input class="form-check-input" type="checkbox" value="" id="post_publicly" name="post_publicly">
+                          <label class="form-check-label" for="submit_to_db">
+                              Post your data with <a href="https://twitter.com/equisat_bot">our Twitter bot</a>?
+                          </label>
+                        </div>
+                        <br>
+                        <p><strong>Note: this make take a while to complete; this is normal while data is pulled from SatNOGS.</strong></p>
+                        <input type="submit" class="btn btn-success btn-submit" value="Submit">
+                    </form>
                 </div>
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" value="" id="post_publicly" name="post_publicly">
-                  <label class="form-check-label" for="submit_to_db">
-                      Post your data with <a href="https://twitter.com/equisat_bot">our Twitter bot</a>?
-                  </label>
-                </div>
-                <input type="submit" id="btn-submit" class="btn btn-success" value="Submit">
-            </form>
+            </div>
         </div>
     </div>
 
 <!--===============================================================================================-->
 	<script src="static/js/main.js"></script>
 <!--===============================================================================================-->
-	<script src="static/js/bootstrap.min.js"></script>
+    <script src="static/js/jquery-3.3.1.min.js"></script>
+<!--===============================================================================================-->
+    <script src="static/js/bootstrap.bundle.min.js"></script>
 <!--===============================================================================================-->
 </body>
 </html>

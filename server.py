@@ -9,6 +9,8 @@ from yagmail import validate
 from yagmail.error import YagInvalidEmailAddress
 import datetime
 import logging
+import urllib
+from bs4 import BeautifulSoup
 
 import config
 if config.decoder_enabled:
@@ -49,15 +51,14 @@ def too_large_request(e):
 def page_not_found(e):
     return render_template('error_page.html', error=e, msg=""), 404
 
-@app.route('/upload', methods=["POST"])
-def upload_form():
+## File decoding
+
+@app.route('/decode_file', methods=["POST"])
+def decode_file():
     # initial validation
-    try:
-        validate.validate_email_with_regex(request.form["email"])
-    except YagInvalidEmailAddress:
-        title = "Invalid email address"
-        message = "We send you the results of the decoding by email, so we'll need a valid email address. We don't store your address after sending you the results."
-        return render_template("decode_submit.html", title=title, message=message)
+    valid, ret = validate_email(request.form["email"])
+    if not valid:
+        return ret
 
     try:
         # parse in rx_time as local time
@@ -103,7 +104,7 @@ def upload_form():
             # remove the unused file
             os.remove(wavfilename)
         else:
-            app.logger.info("[%s] submitting decode request; rx_time: %s, submit_to_db: %s, post_publicly: %s, wavfilename: %s",
+            app.logger.info("[%s] submitting FILE decode request; rx_time: %s, submit_to_db: %s, post_publicly: %s, wavfilename: %s",
                             request.form["station_name"], rx_time, request.form.has_key("submit_to_db"), request.form.has_key("post_publicly"), wavfilename)
 
             decoder.submit(wavfilename, on_complete_decoding, args={
@@ -139,6 +140,204 @@ def save_audiofile():
         filepath = os.path.join(AUDIO_UPLOAD_FOLDER, filename)
         audiofile.save(filepath)
         return filepath
+
+## SatNOGS decoding
+
+@app.route('/decode_satnogs', methods=["POST"])
+def decode_satnogs():
+    # initial validation
+    valid, ret = validate_email(request.form["email"])
+    if not valid:
+        return ret
+
+    try:
+        int(request.form["obs_id"])
+    except ValueError:
+        title = "Invalid observation ID"
+        message = "Your observation ID was not a valid integer number"
+        return render_template("decode_submit.html", title=title, message=message)
+
+    if request.form["start_s"] == "":
+        start_s = None
+    else:
+        try:
+            start_s = int(request.form["start_s"])
+            if start_s < 0:
+                title = "Negative start time"
+                message = "Your start time must be positive; leave the field blank to use the start of the file"
+                return render_template("decode_submit.html", title=title, message=message)
+
+        except ValueError:
+            title = "Invalid start time"
+            message = "Your start time was not a valid integer number"
+            return render_template("decode_submit.html", title=title, message=message)
+
+    if request.form["stop_s"] == "":
+        stop_s = None
+    else:
+        try:
+            stop_s = int(request.form["stop_s"])
+            if stop_s < 0:
+                title = "Negative stop time"
+                message = "Your stop time must be positive; leave the field blank to use the end of the file"
+                return render_template("decode_submit.html", title=title, message=message)
+        except ValueError:
+            title = "Invalid start time"
+            message = "Your start time was not a valid integer number"
+            return render_template("decode_submit.html", title=title, message=message)
+
+    if start_s >= stop_s:
+        title = "Start time wasn't before stop time"
+        message = "Your start time needs to be less than your stop time"
+        return render_template("decode_submit.html", title=title, message=message)
+
+    # try to get observation data
+    logging.info("[obs %s] pulling data from SatNOGS" % request.form["obs_id"])
+    obs_data = scrape_satnogs_metadata(request.form["obs_id"])
+    logging.debug("[obs %s] got SatNOGS data: %s" % (request.form["obs_id"], obs_data))
+
+    # validate the observation properties
+    if obs_data is None:
+        title = "Observation not found or incomplete"
+        message = "We could not find an observation under the ID you provided, or the page for observation was incomplete. " \
+                  "Make sure the page for that observation is available on SatNOGS "
+        return render_template("decode_submit.html", title=title, message=message)
+    elif obs_data["status"] == "pending":
+        title = "Observation is in the future"
+        message = "The observation had status 'future' so there is no data available to decode"
+        return render_template("decode_submit.html", title=title, message=message)
+    elif obs_data["audio_url"] is None:
+        title = "No audio found for observation"
+        message = "We couldn't find an audio file listed under this observation. " \
+                  "It's possible that the observation failed and the station did not upload audio."
+        return render_template("decode_submit.html", title=title, message=message)
+
+    rx_time = obs_data["start_time"] + datetime.timedelta(seconds=start_s)
+
+    # get file
+    filename = AUDIO_UPLOAD_FOLDER + os.path.basename(obs_data["audio_url"])
+    logging.info("[obs %s] retrieving audio file from %s" % (request.form["obs_id"], obs_data["audio_url"]))
+    urllib.urlretrieve(obs_data["audio_url"], filename)
+
+    # convert audio file to WAV and get metadata for filtering
+    wavfilename, sample_rate, duration, _ = decoder.convert_audiofile(filename)
+    os.remove(filename) # remove original file
+
+    if wavfilename is None:
+        title = "Audio file conversion failed"
+        message = "We need to convert your audio file to a 16-bit PCM WAV file, but the conversion failed. " \
+                  "Make sure your audio file format is supported by libsndfile (see link on main page)." \
+                  "You can also try converting the file yourself using a program such as Audacity or ffmpeg."
+        return render_template("decode_submit.html", title=title, message=message)
+
+    # slice audio file to desired duration
+    success, duration = decoder.slice_audiofile(wavfilename, start_s, stop_s, sample_rate)
+
+    if not success:
+        title = "Audio file slicing failed"
+        message = "We were unable to shorten the audio file according to the start and end times you specified. " \
+                  "You can try removing these values or not using negative values."
+        # remove the unused file
+        os.remove(wavfilename)
+
+    elif duration > MAX_AUDIOFILE_DURATION_S:
+        title = "Specified duration too long"
+        message = "The duration you specified with your start and end times was too long. " \
+                  "You can try specifying a shorter or more specific duration (i.e. try not leaving the fields blank)."
+        # remove the unused file
+        os.remove(wavfilename)
+
+    else:
+        app.logger.info("Submitting SATNOGS decode request; obs_id: %s, time interval: [%ss, %ss], rx_time: %s, submit_to_db: %s, post_publicly: %s, wavfilename: %s",
+                        request.form["obs_id"], start_s, stop_s, rx_time, request.form.has_key("submit_to_db"), request.form.has_key("post_publicly"), wavfilename)
+
+        decoder.submit(wavfilename, on_complete_decoding, args={
+            "email": request.form["email"],
+            "rx_time": rx_time,
+            "station_name": obs_data["station_name"],
+            "submit_to_db": request.form.has_key("submit_to_db") or request.form.has_key("post_publicly"), # submit to db is prereq
+            "post_publicly": request.form.has_key("post_publicly")
+        })
+        title = "SatNOGS observation submitted successfully!"
+        message = "The observation is queued to be decoded. You should be receiving an email shortly (even if there were no results). "
+        if request.form.has_key("submit_to_db"):
+            message += "Thank you so much for your help in providing us data on EQUiSat!"
+        else:
+            message += "Thank you for your interest in EQUiSat!"
+
+    return render_template("decode_submit.html", title=title, message=message)
+
+def scrape_satnogs_metadata(obs_id):
+    page = requests.get("https://network.satnogs.org/observations/%s" % obs_id)
+
+    if page.status_code == 404:
+        # no observation found
+        return None
+    else:
+        soup = BeautifulSoup(page.text, 'html.parser')
+
+        try:
+            # get side column
+            side_col_rows = soup.body.find_all(attrs={"class":"front-line"})
+
+            # extract status
+            # <span class ="label label-xs label-good" aria-hidden="true" data-toggle="tooltip" data-placement="right" title=""
+            # data-original-title="Vetted good on 2019-01-07 00:16:28 by Brown Space Engineering">Good</span>
+            status_span = side_col_rows[3].findChildren()[2] # findChildren returns flat list of all nested children
+            status = status_span.text.lower()
+
+            # extract station name
+            # <a href="/stations/291/">
+            #   291 - COSPAR 8049
+            # </a>
+            full_station_name = side_col_rows[1].a.text
+            dash_i = full_station_name.index("-")
+            station_name = full_station_name[dash_i+1:].strip()
+
+            # extract and convert observation start time
+            start_time_span = side_col_rows[7].findChildren()[2]
+            start_time_str = start_time_span.contents[1].text + "T" + start_time_span.contents[3].text
+            start_time = datetime.datetime.strptime(start_time_str, "%Y-%m-%dT%H:%M:%S")
+
+            # extract URL of audio file
+            # <a href="/media/data_obs/399165/satnogs_399165_2019-01-07T00-01-01.ogg" target="_blank" download="">
+            #     <button type="button" class="btn btn-default btn-xs" >
+            #         <span class ="glyphicon glyphicon-download"></span>
+            #         Audio
+            #     </button>
+            # </a>
+            if len(side_col_rows) < 15:
+                audio_url = None
+            else:
+                first_a = side_col_rows[14].a
+                # check if the icon exists and if it's the audio one
+                if first_a is None or first_a["href"].find(".ogg") == -1:
+                    audio_url = None
+                else:
+                    audio_url = "https://network.satnogs.org" + first_a["href"]
+
+            return {
+                "status": str(status),
+                "station_name": str(station_name),
+                "start_time": start_time,
+                "audio_url": str(audio_url)
+            }
+
+        except IndexError or ValueError as ex:
+            logging.error("Error while parsing SatNOGS station page for observation %s", obs_id)
+            logging.exception(ex)
+            return None
+
+## Post-decoding helpers
+
+def validate_email(email):
+    try:
+        validate.validate_email_with_regex(email)
+        return True, None
+    except YagInvalidEmailAddress:
+        title = "Invalid email address"
+        message = "We send you the results of the decoding by email, so we'll need a valid email address. We don't store your address after sending you the results."
+        return False, render_template("decode_submit.html", title=title, message=message)
 
 def on_complete_decoding(wavfilename, packets, args):
     # remove wavfile because we're done with it
