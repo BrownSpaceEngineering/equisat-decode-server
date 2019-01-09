@@ -409,7 +409,7 @@ def send_decode_results(wavfilename, packets, args, num_published):
         corrected_packets_summary += "packet #%d:\nhex:\n\t%s\nerrors in decoding: %s\ndecoded data:\n %s\n\n" % \
                                      (i+1, corrected_packets[i]["corrected"], decode_errs_s, parsed_yaml)
     if len(corrected_packets) > 0:
-        corrected_packets_summary += "To learn more about the decoded data, see <a href=\"https://docs.google.com/spreadsheets/d/e/2PACX-1vSCpr4KPwXkXyEMv6oPps-kVsNsd_Ell5whlvj-0T_5N9dIH5jvBTHCl6eZ_xVBugYEiL5CNR-p45G7/pubhtml?gid=589366724\">this table</a>"
+        corrected_packets_summary += "To learn more about the decoded data, see this table: <a href=\"https://goo.gl/Kj9RkY\">https://goo.gl/Kj9RkY</a>"
 
     extra_msg = ""
     if len(raw_packets) == 0 or len(corrected_packets) == 0:
@@ -426,7 +426,7 @@ def send_decode_results(wavfilename, packets, args, num_published):
 
     contents = """Hello %s,
     
-Here are your results from the <a href="http://decoder.brownspace.org">EQUiSat Decoder</a> for your converted file '%s':
+Here are your results from the EQUiSat Decoder <a href="http://decoder.brownspace.org">decoder.brownspace.org</a>, for your converted file '%s':
 
 %s
 

@@ -40,7 +40,7 @@
 
     <div id="form-section" class="page-width">
 
-        <h5>This website allows you to decode receptions of Brown Space Engineering's first satellite <a href="https://brownspace.org/equisat">EQUiSat</a> by providing either an audio file or specifying a SatNOGS satellite observation to decode. You then receive an email with any data decoded from the transmission. You can also automatically submit that data to our database and have your reception posted publicly on Twitter!</h5>
+        <h5>This website allows you to decode receptions of Brown Space Engineering's first satellite <a href="https://brownspace.org/equisat">EQUiSat</a> by providing either an audio file or specifying a <a href="https://satnogs.org">SatNOGS</a> satellite observation to decode. You then receive an email with any data decoded from the transmission. You can also automatically submit that data to our database and have your reception posted publicly on Twitter!</h5>
 
         <ul class="nav nav-tabs justify-content-center" id="decode-tabs" role="tablist">
             <li class="nav-item">
@@ -61,7 +61,7 @@
                         <li>You can learn <a href="https://brownspace.org/receiving-equisat/">how to receive EQUiSat here</a>.</li>
                         <li>This app is intended for you to upload your best receptions rather than prolonged pass recordings.</li>
                         <li><strong>Important: the packets need to have an audio amplitude in a particular range for best decoding performance. The peak amplitude inside the packet should be about 50% of maximum; see the <a href="/static/good_equisat_fm_recording.wav">example recording</a> for reference.</strong></li>
-                        <li>You'll need to either doppler-correct while receiving the satellite or you should tune the frequency before recording each packet burst</li>
+                        <li>You'll need to either doppler-correct while receiving the satellite or you should tune the frequency before recording each packet burst (see below).</li>
                         <li>The best way to receive EQUiSat with doppler correction is to pair a software-defined radio (SDR) with a satellite tracker. <a href="http://www.pe0sat.vgnet.nl/decoding/unix-tlm-decoding/">GQRX and GPredict</a> are a great combo for linux/mac, and <a href="https://www.youtube.com/watch?v=EK-sasjSAcg">SDRsharp and Orbitron</a> are good for Windows. With doppler correction you can simply record NFM audio throughout the entire pass and edit it later.</li>
                         <li>Alternatively, if you're using a SDR and don't have doppler correction set up, the best approach is:
                             <ol>
@@ -72,9 +72,9 @@
                             </ol>
                         </li>
                         <li>You can also record audio from a handheld or other hardware NFM radio, while performing manual doppler correction or using <a href="https://vk4tmz.blogspot.com/2018/07/gpredict-radio-control-ft991a-via.html">rigctl</a>.</li>
-                        <li>You will likely need to shorten the recording to just the best packets before submitting it here. We recommend using an audio editor such as <a href="https://www.audacityteam.org/download/">Audacity</a> to do this (File->Export->Export Selected Audio is a useful trick)</li>
-                        <li>Lowering the bandwidth and applying noise filters always helps, but make sure not to significantly clip the signal</li>
-                        <li>For reference and comparison, <a href="/static/good_equisat_fm_recording.wav">this is an example</a> of an FM recording which will be successfully decoded by this app (please don't submit it to our database).</li>
+                        <li>You will likely need to shorten the recording to just the best packets before submitting it here. We recommend using an audio editor such as <a href="https://www.audacityteam.org/download/">Audacity</a> to do this (File->Export->Export Selected Audio is a useful trick).</li>
+                        <li>Lowering the bandwidth and applying noise filters always helps, but make sure not to significantly clip the signal.</li>
+                        <li>For reference and comparison, <a href="/static/good_equisat_fm_recording.wav">this is an example</a> of an FM recording which will be successfully decoded with no errors by this app (please don't submit it to our database). K4KDR also <a href="https://twitter.com/scott23192/status/1081103554725724160">showed the process</a> with HDSDR.</li>
                     </ul>
 
                     <p><strong>This app and decoder are still experimental, and currently a very clean reception is required to successfully decode a packet. So don't get discouraged, and check back in the future as we make improvements!</strong></p>
@@ -99,7 +99,7 @@
                         <div class="form-group">
                             <label>Station name or callsign</label>
                             <input type="text" name="station_name" class="form-control" id="station_name1" aria-describedby="stationNameHelp" placeholder="Enter station identifier">
-                            <small id="stationNameHelp" class="form-text text-muted">Your name, callsign, or just the name of the receiving station. You can leave this blank if you want to be anonymous. </small>
+                            <small id="stationNameHelp" class="form-text text-muted">Your name, callsign, or just the name of the receiving station. You can leave this blank if you want to be anonymous.</small>
                         </div>
 
                         <div class="form-group">
@@ -175,7 +175,8 @@
                 <div class="form-info">
                     <p>This page allows you to decode an EQUiSat transmission from an observation made by the <a href="https://network.satnogs.org">SatNOGS network</a> of open-source and publicly available ground stations. You can find observations of EQUiSat by SatNOGS stations <a href="https://network.satnogs.org/observations/?norad=43552">here</a>, and if you create an account on SatNOGS you can even schedule your own observations!</p>
 
-                    <p><strong>This app and decoder are still experimental, and currently a very clean reception is required to successfully decode a packet. So many SatNOGS observations may not be decodable, but we're always making improvements!</strong></p>
+                    <p><strong>This app and decoder are still experimental, and currently a very clean reception is required to successfully decode a packet. As such many SatNOGS observations may not be decodable, but we're always making improvements!</strong></p>
+                    <p><a href="https://network.satnogs.org/observations/399173/">This is an example</a> of a SatNOGS observation that was successfully decoded with no errors (from 300-400s). Also, due to the specific amplitude requirements of this decoder, for some abnormal observations you may have more success downloading the audio file and adjusting the amplitude/duration manually.</p>
                     <p>Note that this app will email you even if the decoder found no data (email us if it doesn't!).</p>
                 </div>
 
@@ -223,6 +224,10 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <div class="footer">
+        <div>Built by <a href="https://brownspace.org">Brown Space Engineering</a> with generous help from <a href="https://destevez.net/">Daniel Estevez</a></div>
     </div>
 
 <!--===============================================================================================-->

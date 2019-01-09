@@ -9,7 +9,11 @@ body {
 }
 
 a {
-    color: #5C84C8;
+    color: #c85c84;
+}
+
+a:hover {
+    color: #5c84c8;
 }
 
 .nav-link.active {
@@ -99,6 +103,22 @@ a {
 
 .btn-submit {
     margin-top: 1.5em;
+    color: black;
+    background-color: #84c85c;
+}
+
+.btn-submit:hover {
+    color: black;
+    background-color: #69a049;
+}
+
+.footer {
+    text-align: center;
+    background: #4c5967;
+    color: white;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    margin-top: 1em;
 }
 
 @media only screen and (max-width: 768px) {
