@@ -75,6 +75,8 @@ def decode_file():
     tz_minutes = int(60*(float(rx_time_timezone[4:])/100.0))
     rx_time = rx_time - datetime.timedelta(hours=tz_hours, minutes=tz_minutes)
 
+    app.logger.debug("parsed rx_time as %s" % rx_time)
+
     if rx_time > datetime.datetime.utcnow():
         title = "Your received time was in the future"
         message = "It appears that you entered a time in the future for the time you received this transmission. Check that you chose the correct time zone and entered the date and time correctly."
@@ -107,14 +109,16 @@ def decode_file():
             app.logger.info("[%s] submitting FILE decode request; rx_time: %s, submit_to_db: %s, post_publicly: %s, wavfilename: %s",
                             request.form["station_name"], rx_time, request.form.has_key("submit_to_db"), request.form.has_key("post_publicly"), wavfilename)
 
+            title = "Audio file submitted successfully!"
             decoder.submit(wavfilename, on_complete_decoding, args={
                 "email": request.form["email"],
                 "rx_time": rx_time,
                 "station_name": request.form["station_name"],
                 "submit_to_db": request.form.has_key("submit_to_db") or request.form.has_key("post_publicly"), # submit to db is prereq
-                "post_publicly": request.form.has_key("post_publicly")
+                "post_publicly": request.form.has_key("post_publicly"),
+                "satnogs": False,
+                "obs_id": None
             })
-            title = "Audio file submitted successfully!"
             message = "Your file is queued to be decoded. You should be receiving an email shortly (even if there were no results). "
             if request.form.has_key("submit_to_db"):
                 message += "Thank you so much for your help in providing us data on EQUiSat!"
@@ -169,11 +173,11 @@ def decode_satnogs():
 
         except ValueError:
             title = "Invalid start time"
-            message = "Your start time was not a valid integer number"
+            message = "Your start time (%s) was not a valid integer number" % request.form["start_s"]
             return render_template("decode_submit.html", title=title, message=message)
 
     if request.form["stop_s"] == "":
-        stop_s = None
+        stop_s = start_s + MAX_AUDIOFILE_DURATION_S-1 # minus one to not go over (need a buffer region)
     else:
         try:
             stop_s = int(request.form["stop_s"])
@@ -181,20 +185,23 @@ def decode_satnogs():
                 title = "Negative stop time"
                 message = "Your stop time must be positive; leave the field blank to use the end of the file"
                 return render_template("decode_submit.html", title=title, message=message)
+
         except ValueError:
-            title = "Invalid start time"
-            message = "Your start time was not a valid integer number"
+            title = "Invalid stop time"
+            message = "Your stop time (%s) was not a valid integer number" % request.form["stop_s"]
             return render_template("decode_submit.html", title=title, message=message)
+
+    app.logger.debug("parsed start and stop time as %s and %s", start_s, stop_s)
 
     if start_s != 0 and stop_s is not None and start_s >= stop_s:
         title = "Start time wasn't before stop time"
-        message = "Your start time needs to be less than your stop time"
+        message = "Your start time (%d) needs to be less than your stop time (%d)" % (start_s, stop_s)
         return render_template("decode_submit.html", title=title, message=message)
 
     # try to get observation data
-    logging.info("[obs %s] pulling data from SatNOGS" % request.form["obs_id"])
+    app.logger.info("[obs %s] pulling data from SatNOGS" % request.form["obs_id"])
     obs_data = scrape_satnogs_metadata(request.form["obs_id"])
-    logging.debug("[obs %s] got SatNOGS data: %s" % (request.form["obs_id"], obs_data))
+    app.logger.debug("[obs %s] got SatNOGS data: %s" % (request.form["obs_id"], obs_data))
 
     # validate the observation properties
     if obs_data is None:
@@ -216,7 +223,7 @@ def decode_satnogs():
 
     # get file
     filename = AUDIO_UPLOAD_FOLDER + os.path.basename(obs_data["audio_url"])
-    logging.info("[obs %s] retrieving audio file from %s" % (request.form["obs_id"], obs_data["audio_url"]))
+    app.logger.info("[obs %s] retrieving audio file from %s" % (request.form["obs_id"], obs_data["audio_url"]))
     urllib.urlretrieve(obs_data["audio_url"], filename)
 
     # convert audio file to WAV and get metadata for filtering
@@ -248,15 +255,18 @@ def decode_satnogs():
         os.remove(wavfilename)
 
     else:
-        app.logger.info("Submitting SATNOGS decode request; obs_id: %s, time interval: [%ss, %ss], rx_time: %s, submit_to_db: %s, post_publicly: %s, wavfilename: %s",
-                        request.form["obs_id"], start_s, stop_s, rx_time, request.form.has_key("submit_to_db"), request.form.has_key("post_publicly"), wavfilename)
+        station_name = "%s #%s" % (obs_data["station_name"], request.form["obs_id"])
+        app.logger.info("Submitting SATNOGS decode request; station_name: %s, time interval: [%ss, %ss], rx_time: %s, submit_to_db: %s, post_publicly: %s, wavfilename: %s",
+                        station_name, start_s, stop_s, rx_time, request.form.has_key("submit_to_db"), request.form.has_key("post_publicly"), wavfilename)
 
         decoder.submit(wavfilename, on_complete_decoding, args={
             "email": request.form["email"],
             "rx_time": rx_time,
-            "station_name": obs_data["station_name"],
+            "station_name": station_name,
             "submit_to_db": request.form.has_key("submit_to_db") or request.form.has_key("post_publicly"), # submit to db is prereq
-            "post_publicly": request.form.has_key("post_publicly")
+            "post_publicly": request.form.has_key("post_publicly"),
+            "satnogs": True,
+            "obs_id": request.form["obs_id"]
         })
         title = "SatNOGS observation submitted successfully!"
         message = "The observation is queued to be decoded. You should be receiving an email shortly (even if there were no results). "
@@ -324,8 +334,8 @@ def scrape_satnogs_metadata(obs_id):
             }
 
         except IndexError or ValueError as ex:
-            logging.error("Error while parsing SatNOGS station page for observation %s", obs_id)
-            logging.exception(ex)
+            app.logger.error("Error while parsing SatNOGS station page for observation %s", obs_id)
+            app.logger.exception(ex)
             return None
 
 ## Post-decoding helpers
@@ -339,16 +349,20 @@ def validate_email(email):
         message = "We send you the results of the decoding by email, so we'll need a valid email address. We don't store your address after sending you the results."
         return False, render_template("decode_submit.html", title=title, message=message)
 
-def on_complete_decoding(wavfilename, packets, args):
-    # remove wavfile because we're done with it
-    app.logger.debug("[%s] removing used wavfile %s", args["station_name"], wavfilename)
-    os.remove(wavfilename)
+def on_complete_decoding(wavfilename, packets, args, err):
+    # remove wavfile because we're done with it (but leave it around on error for debugging)
+    if err is None:
+        app.logger.debug("[%s] removing used wavfile %s", args["station_name"], wavfilename)
+        os.remove(wavfilename)
 
     # publish packet if user desires
-    num_published = publish_packets(packets, args)
+    if err is None:
+        num_published = publish_packets(packets, args)
+    else:
+        num_published = 0
 
     # send email to person with decoded packet info
-    send_decode_results(wavfilename, packets, args, num_published)
+    send_decode_results(wavfilename, packets, args, num_published, err)
 
 def publish_packets(packets, args):
     num_published = 0
@@ -393,46 +407,63 @@ def submit_packet(raw, corrected, post_publicly, rx_time, station_name, api_key)
         app.logger.exception(ex)
         return False
 
-def send_decode_results(wavfilename, packets, args, num_published):
-    subject = "EQUiSat Decoder Results for %s" % args["station_name"]
-
+def send_decode_results(wavfilename, packets, args, num_published, err):
     raw_packets = packets["raw_packets"]
-    raw_packets_summary = "Raw packets (%d detected):\n" % len(raw_packets)
-    for i in range(len(raw_packets)):
-        raw_packets_summary += "packet #%d hex:\n\t%s\n" % (i+1, raw_packets[i])
-
     corrected_packets = packets["corrected_packets"]
-    corrected_packets_summary = "Valid error-corrected packets (%d detected):\n" % len(corrected_packets)
-    for i in range(len(corrected_packets)):
-        parsed_yaml = yaml.dump(corrected_packets[i]["parsed"], default_flow_style=False)
-        decode_errs_s = "none" if len(corrected_packets[i]["decode_errs"]) == 0 else ", ".join(corrected_packets[i]["decode_errs"])
-        corrected_packets_summary += "packet #%d:\nhex:\n\t%s\nerrors in decoding: %s\ndecoded data:\n %s\n\n" % \
-                                     (i+1, corrected_packets[i]["corrected"], decode_errs_s, parsed_yaml)
-    if len(corrected_packets) > 0:
-        corrected_packets_summary += "To learn more about the decoded data, see this table: <a href=\"https://goo.gl/Kj9RkY\">https://goo.gl/Kj9RkY</a>"
-
-    extra_msg = ""
-    if len(raw_packets) == 0 or len(corrected_packets) == 0:
-        extra_msg = "Sorry nothing was found! We're still working on the decoder, so keep trying and check back later!\n\n"
-    if num_published > 0:
-        if args["post_publicly"]:
-            extra_msg = "%d of your packets were added to our database and should have been posted to <a href=\"https://twitter.com/equisat_bot\">Twitter</a>!\n\n" % num_published
-        else:
-            extra_msg = "%d of your packets were added to our database!\n\n" % num_published
-    elif args["submit_to_db"]:
-        extra_msg = "Your packets unfortunately had too many errors to be added to our database or posted publicly.\n\n"
-
     cleaned_wavfilename = os.path.basename(wavfilename)
 
-    contents = """Hello %s,
+    if err is not None:
+        body = """Unfortunately, the server encountered an error while attempting to decode your file and couldn't continue.
+        
+This is likely a bug with our software, so we'd appreciate it if you forwarded this email to bse@brown.edu. 
+
+If you're curious, this is the error message that was produced: %s 
+""" % err
+
+    else:
+        raw_packets_summary = "Raw packets (%d detected):\n" % len(raw_packets)
+        for i in range(len(raw_packets)):
+            raw_packets_summary += "packet #%d hex:\n\t%s\n" % (i+1, raw_packets[i])
+
+        corrected_packets_summary = "Valid error-corrected packets (%d detected):\n" % len(corrected_packets)
+        for i in range(len(corrected_packets)):
+            parsed_yaml = yaml.dump(corrected_packets[i]["parsed"], default_flow_style=False)
+            decode_errs_s = "none" if len(corrected_packets[i]["decode_errs"]) == 0 else ", ".join(corrected_packets[i]["decode_errs"])
+            corrected_packets_summary += "packet #%d:\nhex:\n\t%s\nerrors in decoding: %s\ndecoded data:\n %s\n\n" % \
+                                         (i+1, corrected_packets[i]["corrected"], decode_errs_s, parsed_yaml)
+        if len(corrected_packets) > 0:
+            corrected_packets_summary += "To learn more about the decoded data, see this table: <a href=\"https://goo.gl/Kj9RkY\">https://goo.gl/Kj9RkY</a>"
+
+        extra_msg = ""
+        if len(raw_packets) == 0 or len(corrected_packets) == 0:
+            extra_msg = "\nSorry nothing was found! We're still working on the decoder, so keep trying and check back later!\n"
+        if num_published > 0:
+            if args["post_publicly"]:
+                extra_msg = "\n%d of your packets were added to our database and should have been posted to <a href=\"https://twitter.com/equisat_bot\">Twitter</a>!\n" % num_published
+            else:
+                extra_msg = "\n%d of your packets were added to our database!\n" % num_published
+        elif args["submit_to_db"]:
+            extra_msg = "\nYour packets unfortunately had too many errors to be added to our database or posted publicly.\n"
+
+        body = """%s
+
+%s
+%s""" % (raw_packets_summary, corrected_packets_summary, extra_msg)
+
+    subject = "EQUiSat Decoder Results for %s" % args["station_name"]
+    intro_sentence = 'Here are your results from the EQUiSat Decoder <a href="http://decoder.brownspace.org">decoder.brownspace.org</a>'
+    if args["satnogs"]:
+        header = """Hello,
+        
+%s, for SatNOGS observation #%s:
+""" % (intro_sentence, args["obs_id"])
+    else:
+        header = """Hello %s,
     
-Here are your results from the EQUiSat Decoder <a href="http://decoder.brownspace.org">decoder.brownspace.org</a>, for your converted file '%s':
+%s, for your converted file '%s':
+""" % (args["station_name"], intro_sentence, cleaned_wavfilename)
 
-%s
-
-%s
-
-%sThank you so much for your interest in EQUiSat!
+    footer = """Thank you so much for your interest in EQUiSat!
 
 Best,
 The Brown Space Engineering Team
@@ -443,16 +474,15 @@ Twitter: <a href="twitter.com/BrownCubeSat">twitter.com/BrownCubeSat</a>
 Facebook: <a href="facebook.com/browncubesat">facebook.com/BrownCubeSat</a>
 GitHub: <a href="github.com/brownspaceengineering">github.com/BrownSpaceEngineering</a>
 Email us: <a href="mailto:bse@brown.edu">bse@brown.edu</a>
+"""
 
-""" % (args["station_name"], cleaned_wavfilename, raw_packets_summary, corrected_packets_summary, extra_msg)
-
-    # print(contents)
+    contents = "%s\n%s\n%s" % (header, body, footer)
 
     if yag is not None:
         try:
             yag.send(to=args["email"], subject=subject, contents=contents)
-            app.logger.debug("[%s] sent email with info on packets (raw: %d, corrected: %d)",
-                             args["station_name"], len(raw_packets), len(corrected_packets))
+            app.logger.debug("[%s] sent email with info on packets (raw: %d, corrected: %d, err: %s)",
+                             args["station_name"], len(raw_packets), len(corrected_packets), err)
         except Exception as ex:
             app.logger.error("[%s] email failed to send", args["station_name"])
             app.logger.exception(ex)

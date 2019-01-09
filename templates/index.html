@@ -78,7 +78,7 @@
                     </ul>
 
                     <p><strong>This app and decoder are still experimental, and currently a very clean reception is required to successfully decode a packet. So don't get discouraged, and check back in the future as we make improvements!</strong></p>
-                    <p>Note that this app will email you even if the decoder found no data (email us if it doesn't!).</p>
+                    <p>Note that this app will email you even if the decoder found no data or encountered an error.</p>
                 </div>
 
                 <div class="upload-form">
@@ -177,7 +177,7 @@
 
                     <p><strong>This app and decoder are still experimental, and currently a very clean reception is required to successfully decode a packet. As such many SatNOGS observations may not be decodable, but we're always making improvements!</strong></p>
                     <p><a href="https://network.satnogs.org/observations/399173/">This is an example</a> of a SatNOGS observation that was successfully decoded with no errors (from 300-400s). Also, due to the specific amplitude requirements of this decoder, for some abnormal observations you may have more success downloading the audio file and adjusting the amplitude/duration manually.</p>
-                    <p>Note that this app will email you even if the decoder found no data (email us if it doesn't!).</p>
+                    <p>Note that this app will email you even if the decoder found no data or encountered an error.</p>
                 </div>
 
                 <div class="upload-form">
@@ -193,10 +193,10 @@
                         <div class="form-group">
                             <label for="start_s">Start and end time in observation</label>
                             <div class="input-group">
-                                <input type="number" name="start_s" id="start_s" class="form-control" aria-describedby="start_stop_help" placeholder="Start time in seconds (blank for start)">
-                                <input type="number" name="stop_s" id="stop_s" class="form-control" aria-describedby="start_stop_help" placeholder="Stop time in seconds (blank for end)">
+                                <input type="number" name="start_s" id="start_s" class="form-control" aria-describedby="start_stop_help" placeholder="Start time in seconds (blank for pass start)">
+                                <input type="number" name="stop_s" id="stop_s" class="form-control" aria-describedby="start_stop_help" placeholder="Stop time in seconds (blank for maximum duration)">
                             </div>
-                            <small id="start_stop_help" class="form-text text-muted">The number of seconds into the observation to start and stop decoding. Leave either field blank to start/stop and the beginning/end. Note that the stop time minus the start time (the total duration) cannot exceed {{ max_audiofile_duration_s }}s. Also, the SatNOGS waterfall display is helpful for determining these values!</small>
+                            <small id="start_stop_help" class="form-text text-muted">The number of seconds into the observation to start and stop decoding. Leave start blank to start at the beginning, and stop blank to use as much of the recording as permitted after the start. Note that the stop time minus the start time (the total duration) cannot exceed {{ max_audiofile_duration_s }}s. Also, the SatNOGS waterfall display is helpful for determining these values!</small>
                         </div>
 
                         <div class="form-group">
@@ -227,7 +227,7 @@
     </div>
 
     <div class="footer">
-        <div>Built by <a href="https://brownspace.org">Brown Space Engineering</a> with generous help from <a href="https://destevez.net/">Daniel Estevez</a></div>
+        <div>Built by <a href="https://brownspace.org">Brown Space Engineering</a> with generous help from <a href="https://destevez.net/">Daniel Estévez</a></div>
     </div>
 
 <!--===============================================================================================-->

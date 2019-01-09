@@ -30,7 +30,9 @@ class DecoderQueue:
         self.stopping.value = True
 
     def submit(self, wavfilename, onfinish, args):
-        """ Submits an FM decode job to the decoder queue."""
+        """ Submits an FM decode job (wavfilename) to the decoder queue.
+        The onfinish callback receives wavfilename, a dict containing raw_packets and corrected_packets lists,
+        the passed in args, and any error message (or None otherwise) """
         self.queue.put_nowait({
             "wavfilename": str(wavfilename),
             "onfinish": onfinish,
@@ -97,10 +99,16 @@ class DecoderQueue:
     def decode_worker(dec_queue, stopping):
         try:
             while not stopping.value:
-                # block until next demod is in
                 try:
+                    # block until next demod is in
                     next_demod = dec_queue.get(timeout=QUEUE_EMPTY_POLL_PERIOD)
+                except Queue.Empty:
+                    # check for stopped condition if queue empty after timeout
+                    continue
+                except KeyboardInterrupt:
+                    return
 
+                try:
                     wavfilename = next_demod["wavfilename"]
                     sample_rate, duration, nframes = DecoderQueue.get_audio_info(wavfilename)
 
@@ -140,16 +148,18 @@ class DecoderQueue:
                     onfinish(wavfilename, {
                         "raw_packets": raw_packets,
                         "corrected_packets": corrected_packets,
-                    }, next_demod["args"])
+                    }, next_demod["args"], None)
 
-                except Queue.Empty:
-                    # check for stopped condition if queue empty after timeout
-                    continue
                 except KeyboardInterrupt:
                     return
                 except Exception as ex:
                     logging.error("Exception in decoder worker, skipping job")
                     logging.exception(ex)
+                    onfinish = next_demod["onfinish"]
+                    onfinish(next_demod["wavfilename"], {
+                        "raw_packets": [],
+                        "corrected_packets": [],
+                    }, next_demod["args"], ex.message)
 
         finally:
             print("Stopping decoder worker")
