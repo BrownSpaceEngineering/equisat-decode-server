@@ -232,9 +232,13 @@ def decode_satnogs():
 
     if wavfilename is None:
         title = "Audio file conversion failed"
-        message = "We need to convert your audio file to a 16-bit PCM WAV file, but the conversion failed. " \
-                  "Make sure your audio file format is supported by libsndfile (see link on main page)." \
-                  "You can also try converting the file yourself using a program such as Audacity or ffmpeg."
+        message = "Converting from the SatNOGS format failed. This is likely a bug with our software, " \
+                  "but could be an issue with the SatNOGS observation. Please try another observation" \
+                  "or email us at bse@brown.edu"
+        return render_template("decode_submit.html", title=title, message=message)
+    elif start_s >= duration:
+        title = "Start time was larger than the duration of the observation"
+        message = "You specified a start time of %ss but the observation was only %ss long." % (start_s, duration)
         return render_template("decode_submit.html", title=title, message=message)
 
     # slice audio file to desired duration
