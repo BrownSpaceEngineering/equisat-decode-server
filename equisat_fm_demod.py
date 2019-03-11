@@ -4,7 +4,7 @@
 # GNU Radio Python Flow Graph
 # Title: Equisat Fm Demod
 # Description: This flowgraph generates the flowgraph used in decode.py
-# Generated: Sun Jan  6 21:08:41 2019
+# Generated: Mon Mar 11 19:26:09 2019
 ##################################################
 
 
@@ -48,7 +48,7 @@ class equisat_fm_demod(gr.top_block):
         self.fir_filter_xxx_0 = filter.fir_filter_fff(decimation, (variable_rrc_filter_taps_0))
         self.fir_filter_xxx_0.declare_sample_delay(0)
         self.equisat_decoder_equisat_fec_decoder_0 = equisat_decoder.equisat_fec_decoder()
-        self.equisat_decoder_equisat_4fsk_preamble_detect_0 = equisat_decoder.equisat_4fsk_preamble_detect(255,0.33, 96)
+        self.equisat_decoder_equisat_4fsk_preamble_detect_0 = equisat_decoder.equisat_4fsk_preamble_detect(255,0.33, 40)
         self.equisat_decoder_equisat_4fsk_block_decode_0 = equisat_decoder.equisat_4fsk_block_decode(255, False)
         self.digital_clock_recovery_mm_xx_0 = digital.clock_recovery_mm_ff((sample_rate/decimation)/4800.0, 0.25*gain_mu*gain_mu, 0.5, gain_mu, 0.005)
         self.blocks_wavfile_source_0 = blocks.wavfile_source(wavfile, False)
