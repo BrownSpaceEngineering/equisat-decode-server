@@ -18,6 +18,7 @@ class DecoderQueue:
         self.queue = multiprocessing.Queue()
         self.procs = []
         self.stopping = multiprocessing.Value("b", False)
+        logging.getLogger().setLevel(logging.DEBUG)
 
     def start(self, num):
         """ Spawns a new set of num processes which reads requests off the decode queue and performs them """
