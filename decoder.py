@@ -114,14 +114,17 @@ class DecoderQueue:
 
                     # spawn the GNU radio flowgraph and run it
                     tb = equisat_fm_demod(wavfile=wavfilename, sample_rate=sample_rate)
+                    logging.debug("[%s] Starting demod flowgraph" % wavfilename)
                     tb.start()
                     # run until the wav source block has completed
                     # (GNU Radio has a bug such that flowgraphs with Python message passing blocks won't terminate)
                     # (see https://github.com/gnuradio/gnuradio/pull/797, https://www.ruby-forum.com/t/run-to-completion-not-working-with-message-passing-blocks/240759)
                     while tb.blocks_wavfile_source_0.nitems_written(0) < nframes:
                         time.sleep(FLOWGRAPH_POLL_PERIOD_S)
+                    logging.debug("[%s] Stopping demod flowgraph" % wavfilename)
                     tb.stop()
                     tb.wait()
+                    logging.debug("[%s] Demod flowgraph terminated" % wavfilename)
 
                     # we have a block to store both all valid raw packets and one to store
                     # all those that passed error correction (which includes the corresponding raw)
@@ -164,8 +167,8 @@ class DecoderQueue:
         finally:
             print("Stopping decoder worker")
 
-def onfinish_cli(wf, packets, args):
-    print("done; %d raw, %d corrected" % (len(packets["raw_packets"]), len(packets["corrected_packets"])))
+def onfinish_cli(wf, packets, args, err):
+    print("done; %d raw, %d corrected, err: %s" % (len(packets["raw_packets"]), len(packets["corrected_packets"]), err))
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
