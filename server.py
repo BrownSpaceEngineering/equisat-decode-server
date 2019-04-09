@@ -27,7 +27,7 @@ MAX_AUDIOFILE_SIZE_B = 20e6 # set in nginx config for production server
 PACKET_API_ROUTE = "http://api.brownspace.org/equisat/receive/raw"
 
 app = Flask(__name__)
-decoder = DecoderQueue()
+decoder = DecoderQueue(in_logger=app.logger)
 
 # limit upload file size
 app.logger.setLevel(logging.DEBUG)

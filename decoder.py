@@ -13,12 +13,17 @@ QUEUE_EMPTY_POLL_PERIOD = 2
 FLOWGRAPH_POLL_PERIOD_S = 2
 WAVFILE_CONV_SUBTYPE = "PCM_16"
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
 class DecoderQueue:
-    def __init__(self):
+    def __init__(self, in_logger=None):
         self.queue = multiprocessing.Queue()
         self.procs = []
         self.stopping = multiprocessing.Value("b", False)
-        logging.getLogger().setLevel(logging.DEBUG)
+        if in_logger:
+            global logger
+            logger = in_logger
 
     def start(self, num):
         """ Spawns a new set of num processes which reads requests off the decode queue and performs them """
@@ -65,8 +70,8 @@ class DecoderQueue:
             return wavfilename, sample_rate, duration, nframes
 
         except RuntimeError as ex: # soundfile error
-            logging.error("Error converting audio file '%s' to wav", filename)
-            logging.exception(ex)
+            logger.error("Error converting audio file '%s' to wav", filename)
+            logger.exception(ex)
             return None, 0, 0, 0
 
     @staticmethod
@@ -92,8 +97,8 @@ class DecoderQueue:
             return True, duration
 
         except RuntimeError as ex: # soundfile error
-            logging.error("Error slicing audio file '%s'", filename)
-            logging.exception(ex)
+            logger.error("Error slicing audio file '%s'", filename)
+            logger.exception(ex)
             return False, 0
 
     @staticmethod
@@ -115,17 +120,17 @@ class DecoderQueue:
 
                     # spawn the GNU radio flowgraph and run it
                     tb = equisat_fm_demod(wavfile=wavfilename, sample_rate=sample_rate)
-                    logging.debug("[%s] Starting demod flowgraph" % wavfilename)
+                    logger.debug("[%s] Starting demod flowgraph" % wavfilename)
                     tb.start()
                     # run until the wav source block has completed
                     # (GNU Radio has a bug such that flowgraphs with Python message passing blocks won't terminate)
                     # (see https://github.com/gnuradio/gnuradio/pull/797, https://www.ruby-forum.com/t/run-to-completion-not-working-with-message-passing-blocks/240759)
                     while tb.blocks_wavfile_source_0.nitems_written(0) < nframes:
                         time.sleep(FLOWGRAPH_POLL_PERIOD_S)
-                    logging.debug("[%s] Stopping demod flowgraph" % wavfilename)
+                    logger.debug("[%s] Stopping demod flowgraph" % wavfilename)
                     tb.stop()
                     tb.wait()
-                    logging.debug("[%s] Demod flowgraph terminated" % wavfilename)
+                    logger.debug("[%s] Demod flowgraph terminated" % wavfilename)
 
                     # we have a block to store both all valid raw packets and one to store
                     # all those that passed error correction (which includes the corresponding raw)
@@ -157,8 +162,8 @@ class DecoderQueue:
                 except KeyboardInterrupt:
                     return
                 except Exception as ex:
-                    logging.error("Exception in decoder worker, skipping job")
-                    logging.exception(ex)
+                    logger.error("Exception in decoder worker, skipping job")
+                    logger.exception(ex)
                     onfinish = next_demod["onfinish"]
                     onfinish(next_demod["wavfilename"], {
                         "raw_packets": [],
