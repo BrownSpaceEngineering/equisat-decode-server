@@ -11,6 +11,7 @@ import logging
 
 QUEUE_EMPTY_POLL_PERIOD = 2
 FLOWGRAPH_POLL_PERIOD_S = 2
+MAX_FLOWGRAPH_RUNTIME   = 20
 WAVFILE_CONV_SUBTYPE = "PCM_16"
 
 logger = logging.getLogger(__name__)
@@ -125,8 +126,15 @@ class DecoderQueue:
                     # run until the wav source block has completed
                     # (GNU Radio has a bug such that flowgraphs with Python message passing blocks won't terminate)
                     # (see https://github.com/gnuradio/gnuradio/pull/797, https://www.ruby-forum.com/t/run-to-completion-not-working-with-message-passing-blocks/240759)
-                    while tb.blocks_wavfile_source_0.nitems_written(0) < nframes:
+                    start = time.time()
+                    while tb.blocks_wavfile_source_0.nitems_written(0) < nframes \
+                        and (time.time() - start) < MAX_FLOWGRAPH_RUNTIME:
                         time.sleep(FLOWGRAPH_POLL_PERIOD_S)
+                    
+                    if tb.blocks_wavfile_source_0.nitems_written(0) < nframes:
+                        logger.warn("[%s] Flowgraph timed out (%d/%d frames)" % \
+                            (wavfilename, tb.blocks_wavfile_source_0.nitems_written(0), nframes))
+                            
                     logger.debug("[%s] Stopping demod flowgraph" % wavfilename)
                     tb.stop()
                     tb.wait()

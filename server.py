@@ -20,7 +20,7 @@ else:
     from fake_decoder import DecoderQueue
 
 # config
-NUM_DECODER_PROCESSES = 1
+NUM_DECODER_PROCESSES = 2
 AUDIO_UPLOAD_FOLDER = 'wav_uploads/'
 MAX_AUDIOFILE_DURATION_S = 480
 MAX_AUDIOFILE_SIZE_B = 20e6 # set in nginx config for production server
